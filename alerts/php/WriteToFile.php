@@ -38,8 +38,8 @@ class KentikAlert {
         $this->device = $parsed['query_result']['i_device_name'];
         $this->sup1_outport = $parsed['supl_sql_one_value']['0']['l4_dst_port'];
         $this->sup2_outport = $parsed['supl_sql_one_value']['1']['l4_dst_port'];
-        $this->sup1_dst = $parsed['supl_sql_two_value']['0']['ipv4_dst_addr'];
-        $this->sup2_dst = $parsed['supl_sql_two_value']['1']['ipv4_dst_addr'];
+        $this->sup1_src = $parsed['supl_sql_two_value']['0']['ipv4_src_addr'];
+        $this->sup2_src = $parsed['supl_sql_two_value']['1']['ipv4_src_addr'];
         $this->sup1_inint = $parsed['supl_sql_two_value']['0']['input_port'];
         $this->sup2_inint = $parsed['supl_sql_two_value']['1']['input_port'];
     }
@@ -59,8 +59,8 @@ class KentikAlert {
                                       "l4_dst_port_sup1-2: " . $this->sup2_outport,
                                       "device_input_int_sup2-1: " . $this->sup1_inint,
                                       "device_input_int_sup2-2: " . $this->sup2_inint,
-                                      "destination_IP_addresssup1-1: " . $this->sup1_dst,
-                                      "destination_IP_addresssup1-1: " . $this->sup2_dst
+                                      "source_IP_addresssup1-1: " . $this->sup1_src,
+                                      "source_IP_addresssup1-2: " . $this->sup2_src
                                       PHP_EOL
                                       )
                        );        
