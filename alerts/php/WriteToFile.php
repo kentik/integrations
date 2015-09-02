@@ -55,12 +55,12 @@ class KentikAlert {
                                       "key name: " . $this->key_name,
                                       "key value: " . $this->key_value,
                                       "device_name: " . $this->device,
-                                      $this->sup1_outport,
-                                      $this->sup2_outport,
-                                      $this->sup1_inint,
-                                      $this->sup2_inint,
-                                      $this->sup1_dst,
-                                      $this->sup2_dst,
+                                      $this->sup1-1_outport,
+                                      $this->sup1-2_outport,
+                                      $this->sup2-1_inint,
+                                      $this->sup2-2_inint,
+                                      $this->sup1-1_dst,
+                                      $this->sup2-1_dst,
                                       PHP_EOL
                                       )
                        );        
@@ -71,18 +71,18 @@ class KentikAlert {
 $myFile = "/tmp/testFile.txt";
 
 // Listen for HTTP post and extract/decode JSON body
-$aRequest = "";
+$raw = "";
 
 // If command line, read from stdin.
 if (php_sapi_name() == "cli") {
-    $aRequest = new KentikAlert(trim(file_get_contents('php://stdin')));
+    $raw = new KentikAlert(trim(file_get_contents('php://stdin')));
 } else {
     // Otherwise, read the body of the POST.
-    $aRequest = new KentikAlert(file_get_contents(trim('php://input')));
+    $raw = new KentikAlert(file_get_contents(trim('php://input')));
 }
 
 //Print everything to a file
-file_put_contents($myFile,$aRequest, FILE_APPEND | LOCK_EX);
+file_put_contents($myFile,$raw, FILE_APPEND | LOCK_EX);
 
 // Respond with a success response.
 echo '{ "success": true }' . PHP_EOL;
