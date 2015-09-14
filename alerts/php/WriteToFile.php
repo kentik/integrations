@@ -38,8 +38,8 @@ class KentikAlert {
         $this->device = $parsed['query_result']['i_device_name'];
         $this->sup1_outport = $parsed['supl_sql_one_value']['0']['l4_dst_port'];
         $this->sup2_outport = $parsed['supl_sql_one_value']['1']['l4_dst_port'];
-        $this->sup1_dst = $parsed['supl_sql_two_value']['0']['ipv4_dst_addr'];
-        $this->sup2_dst = $parsed['supl_sql_two_value']['1']['ipv4_dst_addr'];
+        $this->sup1_src = $parsed['supl_sql_two_value']['0']['ipv4_src_addr'];
+        $this->sup2_src = $parsed['supl_sql_two_value']['1']['ipv4_src_addr'];
         $this->sup1_inint = $parsed['supl_sql_two_value']['0']['input_port'];
         $this->sup2_inint = $parsed['supl_sql_two_value']['1']['input_port'];
     }
@@ -55,12 +55,12 @@ class KentikAlert {
                                       "key name: " . $this->key_name,
                                       "key value: " . $this->key_value,
                                       "device_name: " . $this->device,
-                                      $this->sup1_outport,
-                                      $this->sup2_outport,
-                                      $this->sup1_inint,
-                                      $this->sup2_inint,
-                                      $this->sup1_dst,
-                                      $this->sup2_dst,
+                                      "l4_dst_port_sup1-1: " . $this->sup1_outport,
+                                      "l4_dst_port_sup1-2: " . $this->sup2_outport,
+                                      "device_input_int_sup2-1: " . $this->sup1_inint,
+                                      "device_input_int_sup2-2: " . $this->sup2_inint,
+                                      "source_IP_addresssup1-1: " . $this->sup1_src,
+                                      "source_IP_addresssup1-2: " . $this->sup2_src
                                       PHP_EOL
                                       )
                        );        
@@ -71,18 +71,18 @@ class KentikAlert {
 $myFile = "/tmp/testFile.txt";
 
 // Listen for HTTP post and extract/decode JSON body
-$aRequest = "";
+$raw = "";
 
 // If command line, read from stdin.
 if (php_sapi_name() == "cli") {
-    $aRequest = new KentikAlert(trim(file_get_contents('php://stdin')));
+    $raw = new KentikAlert(trim(file_get_contents('php://stdin')));
 } else {
     // Otherwise, read the body of the POST.
-    $aRequest = new KentikAlert(file_get_contents(trim('php://input')));
+    $raw = new KentikAlert(file_get_contents(trim('php://input')));
 }
 
 //Print everything to a file
-file_put_contents($myFile,$aRequest, FILE_APPEND | LOCK_EX);
+file_put_contents($myFile,$raw, FILE_APPEND | LOCK_EX);
 
 // Respond with a success response.
 echo '{ "success": true }' . PHP_EOL;
