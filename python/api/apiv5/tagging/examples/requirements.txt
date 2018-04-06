@@ -1,0 +1,1 @@
+[-e] git://github.com/kentik/integrations@wbc#egg=apiv5.tagging&subdirectory=python/api/apiv5/tagging

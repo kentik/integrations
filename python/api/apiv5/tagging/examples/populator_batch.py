@@ -1,8 +1,5 @@
-import sys
-sys.path.append("..")
-
-import batch as b
-import client as c
+from apiv5.tagging import batch as b
+from apiv5.tagging import client as c
 
 #
 # Example HyperScale populator batch.
