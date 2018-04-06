@@ -1,0 +1,587 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/bmatsuo/lmdb-go/lmdb",
+			"repository": "https://github.com/bmatsuo/lmdb-go",
+			"vcs": "git",
+			"revision": "d98d6a5868d62ba48850ff46066e180b77ed7934",
+			"branch": "master",
+			"path": "/lmdb",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/bmizerany/perks/quantile",
+			"repository": "https://github.com/bmizerany/perks",
+			"vcs": "git",
+			"revision": "d9a9656a3a4b1c2864fdb44db2ef8619772d92aa",
+			"branch": "master",
+			"path": "/quantile",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/davecgh/go-spew/spew",
+			"repository": "https://github.com/davecgh/go-spew",
+			"vcs": "git",
+			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
+			"branch": "master",
+			"path": "/spew",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/dchest/siphash",
+			"repository": "https://github.com/dchest/siphash",
+			"vcs": "git",
+			"revision": "4ebf1de738443ea7f45f02dc394c4df1942a126d",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/dgryski/go-bits",
+			"repository": "https://github.com/dgryski/go-bits",
+			"vcs": "git",
+			"revision": "2ad8d707cc05b1815ce6ff2543bb5e8d8f9298ef",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/gavv/monotime",
+			"repository": "https://github.com/gavv/monotime",
+			"vcs": "git",
+			"revision": "47d58efa69556a936a3c15eb2ed42706d968ab01",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/glycerine/go-capnproto",
+			"repository": "https://github.com/glycerine/go-capnproto",
+			"vcs": "git",
+			"revision": "6212efb58029e575442ea95cfa4285ef96ad4617",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/glycerine/rbtree",
+			"repository": "https://github.com/glycerine/rbtree",
+			"vcs": "git",
+			"revision": "cd7940bb26b149ce2faf398e7c63fff01aa7b394",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-sql-driver/mysql",
+			"repository": "https://github.com/go-sql-driver/mysql",
+			"vcs": "git",
+			"revision": "0b58b37b664c21f3010e836f1b931e1d0b0b0685",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/golang/mock",
+			"repository": "https://github.com/golang/mock",
+			"vcs": "git",
+			"revision": "6e20fef50e74e443696bc32b693cf286b612d45b",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/golang/protobuf/proto",
+			"repository": "https://github.com/golang/protobuf",
+			"vcs": "git",
+			"revision": "2c1988e8c18d14b142c0b472624f71647cf39adb",
+			"branch": "master",
+			"path": "/proto",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/golang/protobuf/ptypes/any",
+			"repository": "https://github.com/golang/protobuf",
+			"vcs": "git",
+			"revision": "2c1988e8c18d14b142c0b472624f71647cf39adb",
+			"branch": "master",
+			"path": "ptypes/any",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/gorilla/context",
+			"repository": "https://github.com/gorilla/context",
+			"vcs": "git",
+			"revision": "08b5f424b9271eedf6f9f0ce86cb9396ed337a42",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/gorilla/mux",
+			"repository": "https://github.com/gorilla/mux",
+			"vcs": "git",
+			"revision": "3f19343c7d9ce75569b952758bd236af94956061",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/influxdata/influxdb/models",
+			"repository": "https://github.com/influxdata/influxdb",
+			"vcs": "git",
+			"revision": "35f2fdafcb7a6c5ad4de0135c1c1355a6097b2cc",
+			"branch": "master",
+			"path": "/models",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/influxdata/influxdb/pkg/escape",
+			"repository": "https://github.com/influxdata/influxdb",
+			"vcs": "git",
+			"revision": "35f2fdafcb7a6c5ad4de0135c1c1355a6097b2cc",
+			"branch": "master",
+			"path": "pkg/escape",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/influxdb/influxdb/client",
+			"repository": "https://github.com/influxdb/influxdb",
+			"vcs": "git",
+			"revision": "35f2fdafcb7a6c5ad4de0135c1c1355a6097b2cc",
+			"branch": "master",
+			"path": "/client",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/jmoiron/sqlx",
+			"repository": "https://github.com/jmoiron/sqlx",
+			"vcs": "git",
+			"revision": "de8647470aafe4854c976707c431dbe1eb2822c6",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/asn",
+			"repository": "https://github.com/kentik/asn",
+			"vcs": "git",
+			"revision": "47822ce09752088bcc6a5f96c7fd0c92eb5721fe",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/common",
+			"repository": "https://github.com/kentik/common",
+			"vcs": "git",
+			"revision": "ed7bb5a65d4dd4dc7e941694b366dc04c243b1d6",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/pkg/baseserver",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "/pkg/baseserver",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/pkg/concurrent",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "pkg/concurrent",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/pkg/features",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "pkg/features",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/pkg/logger",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "/pkg/logger",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/pkg/preconditions",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "pkg/preconditions",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/pkg/properties",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "pkg/properties",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/pkg/version",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "pkg/version",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/StackExchange/wmi",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/StackExchange/wmi",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/go-ole/go-ole",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/go-ole/go-ole",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/gonuts/commander",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/gonuts/commander",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/gonuts/flag",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/gonuts/flag",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/influxdata/influxdb/models",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/influxdata/influxdb/models",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/influxdata/influxdb/pkg/escape",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/influxdata/influxdb/pkg/escape",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/influxdb/influxdb/client",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/influxdb/influxdb/client",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/kentik/common/cmetrics",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/kentik/common/cmetrics",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/kentik/common/healthcheck",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/kentik/common/healthcheck",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/kentik/go-metrics",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/kentik/go-metrics",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/kentik/golog/logger",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/kentik/golog/logger",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/rcrowley/go-metrics",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/rcrowley/go-metrics",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/gopsutil/cpu",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/gopsutil/cpu",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/gopsutil/disk",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/gopsutil/disk",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/gopsutil/host",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/gopsutil/host",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/gopsutil/internal/common",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/gopsutil/internal/common",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/gopsutil/load",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/gopsutil/load",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/gopsutil/mem",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/gopsutil/mem",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/gopsutil/net",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/gopsutil/net",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/gopsutil/process",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/gopsutil/process",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/shirou/w32",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/shirou/w32",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/github.com/stathat/go",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/github.com/stathat/go",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/golang.org/x/sys/unix",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/golang.org/x/sys/unix",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/eggs/vendor/golang.org/x/sys/windows",
+			"repository": "https://github.com/kentik/eggs",
+			"vcs": "git",
+			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"branch": "master",
+			"path": "vendor/golang.org/x/sys/windows",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/go-metrics",
+			"repository": "https://github.com/kentik/go-metrics",
+			"vcs": "git",
+			"revision": "d05a8439b0a06f29afb19b74ddb65489a791fc44",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/golog/logger",
+			"repository": "https://github.com/kentik/golog",
+			"vcs": "git",
+			"revision": "4053e4d8902afd4d580a5fdf9ea966ec9e8a64db",
+			"branch": "master",
+			"path": "/logger",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/killswitch",
+			"repository": "https://github.com/kentik/killswitch",
+			"vcs": "git",
+			"revision": "adcfc7b69b0c1cb8c528865b7dcb18355bff6463",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/kentik/proto",
+			"repository": "https://github.com/kentik/proto",
+			"vcs": "git",
+			"revision": "45a37b1e1e335fbfb488f003f80566adc83a0e78",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/lib/pq",
+			"repository": "https://github.com/lib/pq",
+			"vcs": "git",
+			"revision": "2704adc878c21e1329f46f6e56a1c387d788ff94",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mailru/easyjson/buffer",
+			"repository": "https://github.com/mailru/easyjson",
+			"vcs": "git",
+			"revision": "a5759050626e5d52afe79bbb6d77a59e98df5d2d",
+			"branch": "master",
+			"path": "buffer",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mailru/easyjson/jlexer",
+			"repository": "https://github.com/mailru/easyjson",
+			"vcs": "git",
+			"revision": "a5759050626e5d52afe79bbb6d77a59e98df5d2d",
+			"branch": "master",
+			"path": "/jlexer",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mailru/easyjson/jwriter",
+			"repository": "https://github.com/mailru/easyjson",
+			"vcs": "git",
+			"revision": "a5759050626e5d52afe79bbb6d77a59e98df5d2d",
+			"branch": "master",
+			"path": "jwriter",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/petermattis/goid",
+			"repository": "https://github.com/petermattis/goid",
+			"vcs": "git",
+			"revision": "0ded85884ba5c4c9267fcd5a149061f7c3455eee",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/sasha-s/go-deadlock",
+			"repository": "https://github.com/sasha-s/go-deadlock",
+			"vcs": "git",
+			"revision": "341000892f3dd25f440e6231e8533eb3688ed7ec",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/sasha-s/go-hll",
+			"repository": "https://github.com/sasha-s/go-hll",
+			"vcs": "git",
+			"revision": "d1d2214c232f80325edd8b553cd6b518e1104525",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/shirou/gopsutil",
+			"repository": "https://github.com/shirou/gopsutil",
+			"vcs": "git",
+			"revision": "e49a95f3d5f824c3f9875ca49e54e4fef17f82cf",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/stretchr/testify/assert",
+			"repository": "https://github.com/stretchr/testify",
+			"vcs": "git",
+			"revision": "d77da356e56a7428ad25149ca77381849a6a5232",
+			"branch": "master",
+			"path": "/assert",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
+			"repository": "https://github.com/stretchr/testify",
+			"vcs": "git",
+			"revision": "d77da356e56a7428ad25149ca77381849a6a5232",
+			"branch": "master",
+			"path": "vendor/github.com/davecgh/go-spew/spew",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
+			"repository": "https://github.com/stretchr/testify",
+			"vcs": "git",
+			"revision": "d77da356e56a7428ad25149ca77381849a6a5232",
+			"branch": "master",
+			"path": "vendor/github.com/pmezard/go-difflib/difflib",
+			"notests": true
+		},
+		{
+			"importpath": "gopkg.in/DATA-DOG/go-sqlmock.v1",
+			"repository": "https://gopkg.in/DATA-DOG/go-sqlmock.v1",
+			"vcs": "git",
+			"revision": "9958e5c69de03e97ec215b23f6fcae1f600c3fb6",
+			"branch": "master",
+			"notests": true
+		}
+	]
+}

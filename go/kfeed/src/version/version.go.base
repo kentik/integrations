@@ -1,0 +1,22 @@
+package version
+
+const (
+	VERSION_STRING = "XXX_GIT_HASH"
+    DATE_STRING = "XXX_DATE"
+    PLATFORM_STRING = "XXX_PLATFORM [XXX_GOLANG]"
+    DISTRO_STRING = "XXX_DISTRO"
+)
+
+type VersionInfo struct {
+	Version  string
+	Date     string
+	Platform string
+	Distro   string
+}
+
+var VERSION = VersionInfo{
+	Version:  VERSION_STRING,
+	Date:     DATE_STRING,
+	Platform: PLATFORM_STRING,
+	Distro:   DISTRO_STRING,
+}
