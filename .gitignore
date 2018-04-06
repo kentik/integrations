@@ -1,1 +1,3 @@
 go/kfeed/src/version/version.go
+go/kfeed/bin/kfeed
+go/kfeed/pkg/
