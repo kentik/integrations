@@ -590,6 +590,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/kentik/gohippo",
+			"repository": "https://github.com/kentik/gohippo",
+			"vcs": "git",
+			"revision": "efb8808193bd6fa712a521dbcce75cba9f7ba9b1",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/kentik/golog/logger",
 			"repository": "https://github.com/kentik/golog",
 			"vcs": "git",

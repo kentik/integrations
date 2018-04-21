@@ -1,10 +1,13 @@
 package types
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
+	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow/api"
 	"github.com/kentik/libkflow/flow"
 )
@@ -53,6 +56,32 @@ import (
   "timestamp": "2018-04-17T18:48:36.288089Z"
 }
 */
+
+const (
+	SRC_PROJECT_ID = "c_gce_src_project_id"
+	SRC_VM_NAME    = "c_gce_src_vm_name"
+	SRC_ZONE       = "c_gce_src_zone"
+	SRC_VPC_SNN    = "c_gce_src_vpc_snn"
+	DST_PROJECT_ID = "c_gce_dst_project_id"
+	DST_VM_NAME    = "c_gce_dst_vm_name"
+	DST_ZONE       = "c_gce_dst_zone"
+	DST_VPC_SNN    = "c_gce_dst_vpc_snn"
+	REPORTER       = "c_gce_reporter"
+)
+
+var (
+	GCEColumns = []string{
+		SRC_PROJECT_ID,
+		SRC_VM_NAME,
+		SRC_ZONE,
+		SRC_VPC_SNN,
+		DST_PROJECT_ID,
+		DST_VM_NAME,
+		DST_ZONE,
+		DST_VPC_SNN,
+		REPORTER,
+	}
+)
 
 type GCELogLine struct {
 	InsertID  string    `json:"insertId"`
@@ -140,7 +169,7 @@ func (m *GCELogLine) GetDeviceConfig(plan int, site int) *api.DeviceCreate {
 		CdnAttr:     "N",
 	}
 
-	if m.Payload.DestInstance == nil {
+	if m.IsIn() {
 		dev.Name = m.Payload.SrcInstance.VMName
 		dev.Description = fmt.Sprintf("GCE VM %s %s", m.Payload.SrcInstance.ProjectID, m.Payload.SrcInstance.VMName)
 		dev.IPs = append(dev.IPs, net.ParseIP(m.Payload.Connection.SrcIP))
@@ -153,12 +182,110 @@ func (m *GCELogLine) GetDeviceConfig(plan int, site int) *api.DeviceCreate {
 	return dev
 }
 
+func (m *GCELogLine) SetTags(h *hippo.Client, upserts map[string][]hippo.Upsert) (map[string][]hippo.Upsert, int, error) {
+	done := 0
+	fullUpserts := map[string][]hippo.Upsert{}
+
+	for _, col := range GCEColumns {
+		var req *hippo.Req
+
+		if m.IsIn() {
+			req = &hippo.Req{
+				Replace:  true,
+				Complete: true,
+				Upserts: []hippo.Upsert{
+					{
+						Val: "",
+						Rules: []hippo.Rule{
+							{
+								Dir:         "either",
+								DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.SrcInstance.VMName), "-", "_", -1)},
+							},
+						},
+					},
+				},
+			}
+			switch col {
+			case SRC_PROJECT_ID:
+				req.Upserts[0].Val = m.Payload.SrcInstance.ProjectID
+			case SRC_VM_NAME:
+				req.Upserts[0].Val = m.Payload.SrcInstance.VMName
+			case SRC_ZONE:
+				req.Upserts[0].Val = m.Payload.SrcInstance.Zone
+			case SRC_VPC_SNN:
+				req.Upserts[0].Val = m.Payload.SrcVPC.SubnetworkName
+			case REPORTER:
+				req.Upserts[0].Val = m.Payload.Reporter
+			}
+		} else {
+			req = &hippo.Req{
+				Replace:  true,
+				Complete: true,
+				Upserts: []hippo.Upsert{
+					{
+						Val: "",
+						Rules: []hippo.Rule{
+							{
+								Dir:         "either",
+								DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.DestInstance.VMName), "-", "_", -1)},
+							},
+						},
+					},
+				},
+			}
+			switch col {
+			case DST_PROJECT_ID:
+				req.Upserts[0].Val = m.Payload.DestInstance.ProjectID
+			case DST_VM_NAME:
+				req.Upserts[0].Val = m.Payload.DestInstance.VMName
+			case DST_ZONE:
+				req.Upserts[0].Val = m.Payload.DestInstance.Zone
+			case DST_VPC_SNN:
+				req.Upserts[0].Val = m.Payload.DestVPC.SubnetworkName
+			case REPORTER:
+				req.Upserts[0].Val = m.Payload.Reporter
+			}
+		}
+
+		if old, ok := upserts[col]; ok {
+			for _, o := range old {
+				if o.Val == req.Upserts[0].Val {
+					req.Upserts[0].Rules[0].DeviceNames = append(req.Upserts[0].Rules[0].DeviceNames, o.Rules[0].DeviceNames...)
+				} else {
+					req.Upserts = append(req.Upserts, o)
+				}
+			}
+		}
+
+		b, err := h.EncodeReq(req)
+		if err != nil {
+			return fullUpserts, done, err
+		}
+
+		url := fmt.Sprintf("https://api.kentik.com/api/v5/batch/customdimensions/%s/populators", col)
+		if req, err := h.NewRequest("POST", url, b); err != nil {
+			return fullUpserts, done, err
+		} else {
+			if _, err := h.Do(context.Background(), req); err != nil {
+				return fullUpserts, done, err
+			}
+		}
+		done++
+
+		fullUpserts[col] = req.Upserts
+	}
+
+	return fullUpserts, done, nil
+}
+
+func (m *GCELogLine) IsIn() bool {
+	return m.Payload.DestInstance == nil
+}
+
 func (m *GCELogLine) ToFlow(customs map[string]uint32) *flow.Flow {
 
-	isIn := m.Payload.DestInstance == nil
-
 	var in flow.Flow
-	if isIn {
+	if m.IsIn() {
 		in = flow.Flow{
 			TimestampNano: time.Now().Unix(),
 			InBytes:       getUInt64(&m.Payload.Bytes),
@@ -177,21 +304,6 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32) *flow.Flow {
 					ID:   customs[CLIENT_NW_LATENCY_MS],
 					Type: flow.U32,
 					U32:  getUInt32(&m.Payload.RTT),
-				},
-				flow.Custom{
-					ID:   customs[KFLOW_HTTP_UA],
-					Type: flow.Str,
-					Str:  m.Resource.Labels.Location,
-				},
-				flow.Custom{
-					ID:   customs[KFLOW_DNS_QUERY],
-					Type: flow.Str,
-					Str:  m.Payload.SrcVPC.ProjectID,
-				},
-				flow.Custom{
-					ID:   customs[KFLOW_DNS_RESPONSE],
-					Type: flow.Str,
-					Str:  m.Payload.SrcVPC.Name,
 				},
 			},
 		}
@@ -215,21 +327,6 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32) *flow.Flow {
 					Type: flow.U32,
 					U32:  getUInt32(&m.Payload.RTT),
 				},
-				flow.Custom{
-					ID:   customs[KFLOW_HTTP_UA],
-					Type: flow.Str,
-					Str:  m.Resource.Labels.Location,
-				},
-				flow.Custom{
-					ID:   customs[KFLOW_DNS_QUERY],
-					Type: flow.Str,
-					Str:  m.Payload.DestVPC.ProjectID,
-				},
-				flow.Custom{
-					ID:   customs[KFLOW_DNS_RESPONSE],
-					Type: flow.Str,
-					Str:  m.Payload.DestVPC.Name,
-				},
 			},
 		}
 	}
@@ -237,7 +334,7 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32) *flow.Flow {
 	v4Src, v6Src := PackIP(&m.Payload.Connection.SrcIP)
 	v4Dst, v6Dst := PackIP(&m.Payload.Connection.DestIP)
 
-	if isIn {
+	if m.IsIn() {
 		if v6Src != nil {
 			in.Ipv6SrcAddr = v6Src
 		} else {

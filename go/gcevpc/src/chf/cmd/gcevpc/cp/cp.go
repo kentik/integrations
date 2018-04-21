@@ -14,6 +14,7 @@ import (
 	"github.com/kentik/eggs/pkg/baseserver"
 	"github.com/kentik/eggs/pkg/logger"
 	go_metrics "github.com/kentik/go-metrics"
+	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow"
 )
 
@@ -32,6 +33,7 @@ type Cp struct {
 	plan      int
 	site      int
 	client    *pubsub.Client
+	hippo     *hippo.Client
 	rateCheck go_metrics.Meter
 	rateError go_metrics.Meter
 	msgs      chan *types.GCELogLine
@@ -57,6 +59,14 @@ func NewCp(log logger.ContextL, sub string, project string, dest string, email s
 		rateCheck: go_metrics.NewMeter(),
 		rateError: go_metrics.NewMeter(),
 	}
+
+	hc := hippo.NewHippo("", email, token)
+	if hc == nil {
+		return nil, fmt.Errorf("Could not create Hippo Client")
+	} else {
+		cp.hippo = hc
+	}
+
 	return &cp, nil
 }
 
@@ -65,12 +75,19 @@ func (cp *Cp) cleanup() {
 	cp.client.Close()
 }
 
+type flowClient struct {
+	sender      *libkflow.Sender
+	setSrcTags  bool
+	setDestTags bool
+}
+
 // Main loop. Take in messages, turn them into kflow, and send them out.
 func (cp *Cp) generateKflow(ctx context.Context) error {
 	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, version.VERSION_STRING)
-	clients := map[string]*libkflow.Sender{}
+	clients := map[string]*flowClient{}
 	customs := map[string]map[string]uint32{}
 	errors := make(chan error, CHAN_SLACK)
+	fullUpserts := map[string][]hippo.Upsert{}
 
 	if cp.dest != "" {
 		config.SetFlow(cp.dest)
@@ -97,7 +114,7 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 					cp.log.Infof("Found existing device: %s", host)
 				}
 
-				clients[host] = client
+				clients[host] = &flowClient{sender: client}
 				customs[host] = map[string]uint32{}
 				for _, c := range client.Device.Customs {
 					customs[host][c.Name] = uint32(c.ID)
@@ -105,7 +122,30 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 			}
 
 			req := msg.ToFlow(customs[host])
-			clients[host].Send(req)
+
+			if msg.IsIn() {
+				if !clients[host].setSrcTags {
+					if nu, cnt, err := msg.SetTags(cp.hippo, fullUpserts); err != nil {
+						cp.log.Errorf("Error setting src tags: %v", err)
+					} else {
+						cp.log.Infof("%d SRC Tags set for: %s", cnt, host)
+						fullUpserts = nu
+					}
+					clients[host].setSrcTags = true
+				}
+			} else {
+				if !clients[host].setDestTags {
+					if nu, cnt, err := msg.SetTags(cp.hippo, fullUpserts); err != nil {
+						cp.log.Errorf("Error setting dst tags: %v", err)
+					} else {
+						cp.log.Infof("%d DST Tags set for: %s", cnt, host)
+						fullUpserts = nu
+					}
+					clients[host].setDestTags = true
+				}
+			}
+
+			clients[host].sender.Send(req)
 		case err := <-errors:
 			cp.log.Errorf("Error in kflow: %v", err)
 		case <-ctx.Done():
