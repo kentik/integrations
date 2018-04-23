@@ -216,6 +216,14 @@ func (m *GCELogLine) SetTags(h *hippo.Client, upserts map[string][]hippo.Upsert)
 				req.Upserts[0].Val = m.Payload.SrcVPC.SubnetworkName
 			case REPORTER:
 				req.Upserts[0].Val = m.Payload.Reporter
+			case DST_PROJECT_ID:
+				req.Upserts[0].Val = m.Payload.SrcInstance.ProjectID
+			case DST_VM_NAME:
+				req.Upserts[0].Val = m.Payload.SrcInstance.VMName
+			case DST_ZONE:
+				req.Upserts[0].Val = m.Payload.SrcInstance.Zone
+			case DST_VPC_SNN:
+				req.Upserts[0].Val = m.Payload.SrcVPC.SubnetworkName
 			}
 		} else {
 			req = &hippo.Req{

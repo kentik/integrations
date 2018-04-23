@@ -133,16 +133,9 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 					}
 					clients[host].setSrcTags = true
 				}
+				cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 			} else {
-				if !clients[host].setDestTags {
-					if nu, cnt, err := msg.SetTags(cp.hippo, fullUpserts); err != nil {
-						cp.log.Errorf("Error setting dst tags: %v", err)
-					} else {
-						cp.log.Infof("%d DST Tags set for: %s", cnt, host)
-						fullUpserts = nu
-					}
-					clients[host].setDestTags = true
-				}
+				cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 			}
 
 			clients[host].sender.Send(req)
@@ -161,7 +154,6 @@ func (cp *Cp) runSubscription(sub *pubsub.Subscription) {
 		err := sub.Receive(context.Background(), func(ctx context.Context, m *pubsub.Message) {
 			m.Ack()
 			var data types.GCELogLine
-			cp.log.Debugf("%s", m.Data)
 			if err := json.Unmarshal(m.Data, &data); err != nil {
 				cp.rateError.Mark(1)
 				cp.log.Errorf("Error reading log line: %v", err)
