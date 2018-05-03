@@ -23,6 +23,7 @@ const (
 	CHAN_SLACK     = 1000
 	PROGRAM_NAME   = "gcevpc"
 	TAG_CHECK_TIME = 60 * time.Second
+	TAG_RESET_TIME = 1 * time.Hour
 )
 
 type Cp struct {
@@ -99,6 +100,9 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 	tagTick := time.NewTicker(TAG_CHECK_TIME)
 	defer tagTick.Stop()
 
+	tagReset := time.NewTicker(TAG_RESET_TIME)
+	defer tagReset.Stop()
+
 	for {
 		select {
 		case msg := <-cp.msgs:
@@ -163,6 +167,11 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 
 			if clients[host].sender != nil {
 				clients[host].sender.Send(req)
+			}
+		case _ = <-tagReset.C:
+			for h, _ := range clients {
+				clients[h].setSrcTags = false
+				clients[h].setDestTags = false
 			}
 		case _ = <-tagTick.C:
 			if newTag {
