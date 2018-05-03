@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"chf/cmd/gcevpc/cp/types"
 	"version"
@@ -19,8 +20,9 @@ import (
 )
 
 const (
-	CHAN_SLACK   = 1000
-	PROGRAM_NAME = "gcevpc"
+	CHAN_SLACK     = 1000
+	PROGRAM_NAME   = "gcevpc"
+	TAG_CHECK_TIME = 60 * time.Second
 )
 
 type Cp struct {
@@ -88,10 +90,14 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 	customs := map[string]map[string]uint32{}
 	errors := make(chan error, CHAN_SLACK)
 	fullUpserts := map[string][]hippo.Upsert{}
+	newTag := false
 
 	if cp.dest != "" {
 		config.SetFlow(cp.dest)
 	}
+
+	tagTick := time.NewTicker(TAG_CHECK_TIME)
+	defer tagTick.Stop()
 
 	for {
 		select {
@@ -108,7 +114,6 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 					client, err = libkflow.NewSenderWithNewDevice(dconf, errors, config)
 					if err != nil {
 						cp.log.Errorf("Cannot start client: %s %v", host, err)
-						return err
 					}
 				} else {
 					cp.log.Infof("Found existing device: %s", host)
@@ -116,8 +121,11 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 
 				clients[host] = &flowClient{sender: client}
 				customs[host] = map[string]uint32{}
-				for _, c := range client.Device.Customs {
-					customs[host][c.Name] = uint32(c.ID)
+
+				if client != nil {
+					for _, c := range client.Device.Customs {
+						customs[host][c.Name] = uint32(c.ID)
+					}
 				}
 			}
 
@@ -125,20 +133,48 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 
 			if msg.IsIn() {
 				if !clients[host].setSrcTags {
-					if nu, cnt, err := msg.SetTags(cp.hippo, fullUpserts); err != nil {
-						cp.log.Errorf("Error setting src tags: %v", err)
-					} else {
-						cp.log.Infof("%d SRC Tags set for: %s", cnt, host)
-						fullUpserts = nu
+					if clients[host].sender != nil {
+						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
+							cp.log.Errorf("Error setting src tags: %v", err)
+						} else {
+							cp.log.Infof("%d SRC Tags set for: %s", cnt, host)
+							fullUpserts = nu
+							newTag = true
+						}
 					}
 					clients[host].setSrcTags = true
 				}
 				cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 			} else {
+				if !clients[host].setDestTags {
+					if clients[host].sender != nil {
+						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
+							cp.log.Errorf("Error setting dst tags: %v", err)
+						} else {
+							cp.log.Infof("%d DST Tags set for: %s", cnt, host)
+							fullUpserts = nu
+							newTag = true
+						}
+					}
+					clients[host].setDestTags = true
+				}
 				cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 			}
 
-			clients[host].sender.Send(req)
+			if clients[host].sender != nil {
+				clients[host].sender.Send(req)
+			}
+		case _ = <-tagTick.C:
+			if newTag {
+				sent, err := cp.sendHippoTags(fullUpserts)
+				if err != nil {
+					cp.log.Errorf("Error setting tags: %v", err)
+				} else {
+					cp.log.Infof("%d tags set", sent)
+				}
+				newTag = false
+			}
+
 		case err := <-errors:
 			cp.log.Errorf("Error in kflow: %v", err)
 		case <-ctx.Done():
@@ -146,6 +182,33 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+func (cp *Cp) sendHippoTags(upserts map[string][]hippo.Upsert) (int, error) {
+	done := 0
+	for col, up := range upserts {
+		req := &hippo.Req{
+			Replace:  false,
+			Complete: true,
+			Upserts:  up,
+		}
+
+		b, err := cp.hippo.EncodeReq(req)
+		if err != nil {
+			return done, err
+		}
+
+		url := fmt.Sprintf("https://api.kentik.com/api/v5/batch/customdimensions/%s/populators", col)
+		if req, err := cp.hippo.NewRequest("POST", url, b); err != nil {
+			return done, err
+		} else {
+			if _, err := cp.hippo.Do(context.Background(), req); err != nil {
+				return done, err
+			}
+		}
+		done++
+	}
+	return done, nil
 }
 
 // Runs the subscription and reads messages.

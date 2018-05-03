@@ -1,10 +1,8 @@
 package types
 
 import (
-	"context"
 	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/kentik/gohippo"
@@ -182,24 +180,30 @@ func (m *GCELogLine) GetDeviceConfig(plan int, site int) *api.DeviceCreate {
 	return dev
 }
 
-func (m *GCELogLine) SetTags(h *hippo.Client, upserts map[string][]hippo.Upsert) (map[string][]hippo.Upsert, int, error) {
+func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hippo.Upsert, int, error) {
 	done := 0
+
+	// Pre-populate this.
 	fullUpserts := map[string][]hippo.Upsert{}
+	for s, v := range upserts {
+		fullUpserts[s] = v
+	}
 
 	for _, col := range GCEColumns {
 		var req *hippo.Req
 
 		if m.IsIn() {
 			req = &hippo.Req{
-				Replace:  true,
+				Replace:  false,
 				Complete: true,
 				Upserts: []hippo.Upsert{
 					{
 						Val: "",
 						Rules: []hippo.Rule{
 							{
-								Dir:         "either",
-								DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.SrcInstance.VMName), "-", "_", -1)},
+								Dir: "either",
+								//DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.SrcInstance.VMName), "-", "_", -1)},
+								IPAddresses: []string{m.Payload.Connection.SrcIP},
 							},
 						},
 					},
@@ -214,20 +218,10 @@ func (m *GCELogLine) SetTags(h *hippo.Client, upserts map[string][]hippo.Upsert)
 				req.Upserts[0].Val = m.Payload.SrcInstance.Zone
 			case SRC_VPC_SNN:
 				req.Upserts[0].Val = m.Payload.SrcVPC.SubnetworkName
-			case REPORTER:
-				req.Upserts[0].Val = m.Payload.Reporter
-			case DST_PROJECT_ID:
-				req.Upserts[0].Val = m.Payload.SrcInstance.ProjectID
-			case DST_VM_NAME:
-				req.Upserts[0].Val = m.Payload.SrcInstance.VMName
-			case DST_ZONE:
-				req.Upserts[0].Val = m.Payload.SrcInstance.Zone
-			case DST_VPC_SNN:
-				req.Upserts[0].Val = m.Payload.SrcVPC.SubnetworkName
 			}
 		} else {
 			req = &hippo.Req{
-				Replace:  true,
+				Replace:  false,
 				Complete: true,
 				Upserts: []hippo.Upsert{
 					{
@@ -235,7 +229,8 @@ func (m *GCELogLine) SetTags(h *hippo.Client, upserts map[string][]hippo.Upsert)
 						Rules: []hippo.Rule{
 							{
 								Dir:         "either",
-								DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.DestInstance.VMName), "-", "_", -1)},
+								IPAddresses: []string{m.Payload.Connection.DestIP},
+								//DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.DestInstance.VMName), "-", "_", -1)},
 							},
 						},
 					},
@@ -256,30 +251,33 @@ func (m *GCELogLine) SetTags(h *hippo.Client, upserts map[string][]hippo.Upsert)
 		}
 
 		if old, ok := upserts[col]; ok {
-			for _, o := range old {
-				if o.Val == req.Upserts[0].Val {
-					req.Upserts[0].Rules[0].DeviceNames = append(req.Upserts[0].Rules[0].DeviceNames, o.Rules[0].DeviceNames...)
-				} else {
-					req.Upserts = append(req.Upserts, o)
+			for _, col := range old {
+				if col.Val != "" {
+					if col.Val == req.Upserts[0].Val {
+						found := false
+						for _, ip := range col.Rules[0].IPAddresses {
+							if ip == req.Upserts[0].Rules[0].IPAddresses[0] {
+								found = true
+							}
+						}
+						if !found {
+							req.Upserts[0].Rules[0].IPAddresses = append(req.Upserts[0].Rules[0].IPAddresses, col.Rules[0].IPAddresses...)
+						}
+					} else {
+						req.Upserts = append(req.Upserts, col)
+					}
 				}
 			}
 		}
 
-		b, err := h.EncodeReq(req)
-		if err != nil {
-			return fullUpserts, done, err
-		}
-
-		url := fmt.Sprintf("https://api.kentik.com/api/v5/batch/customdimensions/%s/populators", col)
-		if req, err := h.NewRequest("POST", url, b); err != nil {
-			return fullUpserts, done, err
-		} else {
-			if _, err := h.Do(context.Background(), req); err != nil {
-				return fullUpserts, done, err
+		newUps := []hippo.Upsert{}
+		for _, u := range req.Upserts {
+			if u.Val != "" {
+				newUps = append(newUps, u)
 			}
 		}
+		req.Upserts = newUps
 		done++
-
 		fullUpserts[col] = req.Upserts
 	}
 
@@ -287,7 +285,7 @@ func (m *GCELogLine) SetTags(h *hippo.Client, upserts map[string][]hippo.Upsert)
 }
 
 func (m *GCELogLine) IsIn() bool {
-	return m.Payload.DestInstance == nil
+	return m.Payload.SrcInstance != nil && m.Payload.SrcInstance.VMName != ""
 }
 
 func (m *GCELogLine) ToFlow(customs map[string]uint32) *flow.Flow {

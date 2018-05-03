@@ -32,7 +32,7 @@ func main() {
 	}
 
 	bs := baseserver.Boilerplate("gcevpc", eVeg, kt.DefaultGCEVPCProperties)
-	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCPVPC "}, bs.Logger)
+	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCEVPC"}, bs.Logger)
 
 	cpr, err := cp.NewCp(lc, *FLAG_sourceSub, *FLAG_projectID, *FLAG_dstAddr, *FLAG_email, *FLAG_token, *FLAG_plan, *FLAG_site)
 	if err != nil {
