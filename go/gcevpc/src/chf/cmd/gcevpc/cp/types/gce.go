@@ -201,7 +201,7 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 						Val: "",
 						Rules: []hippo.Rule{
 							{
-								Dir: "either",
+								Dir: "src",
 								//DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.SrcInstance.VMName), "-", "_", -1)},
 								IPAddresses: []string{m.Payload.Connection.SrcIP},
 							},
@@ -228,7 +228,7 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 						Val: "",
 						Rules: []hippo.Rule{
 							{
-								Dir:         "either",
+								Dir:         "dst",
 								IPAddresses: []string{m.Payload.Connection.DestIP},
 								//DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.DestInstance.VMName), "-", "_", -1)},
 							},
@@ -247,38 +247,33 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 				req.Upserts[0].Val = m.Payload.DestVPC.SubnetworkName
 			case REPORTER:
 				req.Upserts[0].Val = m.Payload.Reporter
+				req.Upserts[0].Rules[0].Dir = "either"
 			}
 		}
 
-		if old, ok := upserts[col]; ok {
-			for _, col := range old {
-				if col.Val != "" {
-					if col.Val == req.Upserts[0].Val {
-						found := false
-						for _, ip := range col.Rules[0].IPAddresses {
-							if ip == req.Upserts[0].Rules[0].IPAddresses[0] {
-								found = true
-							}
+		if req.Upserts[0].Val != "" {
+			if old, ok := upserts[col]; ok {
+				for _, oldCol := range old {
+					if oldCol.Val != "" {
+						if oldCol.Val == req.Upserts[0].Val {
+							req.Upserts[0].Rules[0].IPAddresses = append(req.Upserts[0].Rules[0].IPAddresses, oldCol.Rules[0].IPAddresses...)
+						} else {
+							req.Upserts = append(req.Upserts, oldCol)
 						}
-						if !found {
-							req.Upserts[0].Rules[0].IPAddresses = append(req.Upserts[0].Rules[0].IPAddresses, col.Rules[0].IPAddresses...)
-						}
-					} else {
-						req.Upserts = append(req.Upserts, col)
 					}
 				}
 			}
-		}
 
-		newUps := []hippo.Upsert{}
-		for _, u := range req.Upserts {
-			if u.Val != "" {
-				newUps = append(newUps, u)
+			newUps := []hippo.Upsert{}
+			for _, u := range req.Upserts {
+				if u.Val != "" {
+					newUps = append(newUps, u)
+				}
 			}
+			req.Upserts = newUps
+			done++
+			fullUpserts[col] = req.Upserts
 		}
-		req.Upserts = newUps
-		done++
-		fullUpserts[col] = req.Upserts
 	}
 
 	return fullUpserts, done, nil

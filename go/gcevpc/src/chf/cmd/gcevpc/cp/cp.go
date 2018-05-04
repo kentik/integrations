@@ -197,9 +197,28 @@ func (cp *Cp) sendHippoTags(upserts map[string][]hippo.Upsert) (int, error) {
 	done := 0
 	for col, up := range upserts {
 		req := &hippo.Req{
-			Replace:  false,
+			Replace:  true,
 			Complete: true,
 			Upserts:  up,
+		}
+
+		for _, ups := range up {
+			for _, rule := range ups.Rules {
+				// Dedup IPs here.
+				ips := map[string]bool{}
+				for _, ip := range rule.IPAddresses {
+					ips[ip] = true
+				}
+				ipsArr := make([]string, len(ips))
+				i := 0
+				for ip, _ := range ips {
+					ipsArr[i] = ip
+					i++
+				}
+				rule.IPAddresses = ipsArr
+
+				cp.log.Debugf("%s %s -> %v", col, ups.Val, rule.IPAddresses)
+			}
 		}
 
 		b, err := cp.hippo.EncodeReq(req)
