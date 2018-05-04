@@ -75,7 +75,9 @@ func NewCp(log logger.ContextL, sub string, project string, dest string, email s
 
 // nolint: errcheck
 func (cp *Cp) cleanup() {
-	cp.client.Close()
+	if cp.client != nil {
+		cp.client.Close()
+	}
 }
 
 type flowClient struct {

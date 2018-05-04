@@ -147,11 +147,20 @@ type Labels struct {
 }
 
 func (m *GCELogLine) GetHost() string {
+	host := ""
+
 	if m.IsIn() {
-		return m.Payload.SrcVPC.Name
+		host = m.Payload.SrcVPC.Name
 	} else {
-		return m.Payload.DestVPC.Name
+		host = m.Payload.DestVPC.Name
 	}
+
+	// Hack to avoid breaking Kentik.
+	if host == "default" {
+		host = "gce_" + host
+	}
+
+	return host
 }
 
 func (m *GCELogLine) GetVMName() string {
