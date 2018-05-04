@@ -147,14 +147,22 @@ type Labels struct {
 }
 
 func (m *GCELogLine) GetHost() string {
-	if m.Payload.DestInstance == nil {
+	if m.IsIn() {
+		return m.Payload.SrcVPC.Name
+	} else {
+		return m.Payload.DestVPC.Name
+	}
+}
+
+func (m *GCELogLine) GetVMName() string {
+	if m.IsIn() {
 		return m.Payload.SrcInstance.VMName
 	} else {
 		return m.Payload.DestInstance.VMName
 	}
 }
 
-func (m *GCELogLine) GetDeviceConfig(plan int, site int) *api.DeviceCreate {
+func (m *GCELogLine) GetDeviceConfig(plan int, site int, host string) *api.DeviceCreate {
 	dev := &api.DeviceCreate{
 		Name:        "",
 		Type:        "host-nprobe-dns-www",
@@ -168,12 +176,12 @@ func (m *GCELogLine) GetDeviceConfig(plan int, site int) *api.DeviceCreate {
 	}
 
 	if m.IsIn() {
-		dev.Name = m.Payload.SrcInstance.VMName
-		dev.Description = fmt.Sprintf("GCE VM %s %s", m.Payload.SrcInstance.ProjectID, m.Payload.SrcInstance.VMName)
+		dev.Name = host
+		dev.Description = fmt.Sprintf("GCE VM %s %s", m.Payload.SrcInstance.ProjectID, m.Payload.SrcVPC.Name)
 		dev.IPs = append(dev.IPs, net.ParseIP(m.Payload.Connection.SrcIP))
 	} else {
-		dev.Name = m.Payload.DestInstance.VMName
-		dev.Description = fmt.Sprintf("GCE VM %s %s", m.Payload.DestInstance.ProjectID, m.Payload.DestInstance.VMName)
+		dev.Name = host
+		dev.Description = fmt.Sprintf("GCE VM %s %s", m.Payload.DestInstance.ProjectID, m.Payload.DestVPC.Name)
 		dev.IPs = append(dev.IPs, net.ParseIP(m.Payload.Connection.DestIP))
 	}
 

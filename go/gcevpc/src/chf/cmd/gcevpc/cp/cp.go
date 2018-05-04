@@ -79,9 +79,22 @@ func (cp *Cp) cleanup() {
 }
 
 type flowClient struct {
-	sender      *libkflow.Sender
-	setSrcTags  bool
-	setDestTags bool
+	sender          *libkflow.Sender
+	setSrcHostTags  map[string]bool
+	setDestHostTags map[string]bool
+}
+
+func NewFlowClient(client *libkflow.Sender) *flowClient {
+	return &flowClient{
+		sender:          client,
+		setSrcHostTags:  map[string]bool{},
+		setDestHostTags: map[string]bool{},
+	}
+}
+
+func (c *flowClient) ResetTags() {
+	c.setSrcHostTags = map[string]bool{}
+	c.setDestHostTags = map[string]bool{}
 }
 
 // Main loop. Take in messages, turn them into kflow, and send them out.
@@ -107,13 +120,14 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 		select {
 		case msg := <-cp.msgs:
 			host := msg.GetHost()
+			vmname := msg.GetVMName()
 			if _, ok := clients[host]; !ok {
 				var client *libkflow.Sender
 				var err error
 
 				client, err = libkflow.NewSenderWithDeviceName(host, errors, config)
 				if err != nil {
-					dconf := msg.GetDeviceConfig(cp.plan, cp.site)
+					dconf := msg.GetDeviceConfig(cp.plan, cp.site, host)
 					cp.log.Infof("Creating new device: %s -> %v", dconf.Name, dconf.IPs)
 					client, err = libkflow.NewSenderWithNewDevice(dconf, errors, config)
 					if err != nil {
@@ -123,7 +137,7 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 					cp.log.Infof("Found existing device: %s", host)
 				}
 
-				clients[host] = &flowClient{sender: client}
+				clients[host] = NewFlowClient(client)
 				customs[host] = map[string]uint32{}
 
 				if client != nil {
@@ -136,31 +150,31 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 			req := msg.ToFlow(customs[host])
 
 			if msg.IsIn() {
-				if !clients[host].setSrcTags {
+				if !clients[host].setSrcHostTags[vmname] {
 					if clients[host].sender != nil {
 						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
 							cp.log.Errorf("Error setting src tags: %v", err)
 						} else {
-							cp.log.Infof("%d SRC Tags set for: %s", cnt, host)
+							cp.log.Infof("%d SRC Tags set for: %s %s", cnt, host, vmname)
 							fullUpserts = nu
 							newTag = true
 						}
 					}
-					clients[host].setSrcTags = true
+					clients[host].setSrcHostTags[vmname] = true
 				}
 				cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 			} else {
-				if !clients[host].setDestTags {
+				if !clients[host].setDestHostTags[vmname] {
 					if clients[host].sender != nil {
 						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
 							cp.log.Errorf("Error setting dst tags: %v", err)
 						} else {
-							cp.log.Infof("%d DST Tags set for: %s", cnt, host)
+							cp.log.Infof("%d DST Tags set for: %s %s", cnt, host, vmname)
 							fullUpserts = nu
 							newTag = true
 						}
 					}
-					clients[host].setDestTags = true
+					clients[host].setDestHostTags[vmname] = true
 				}
 				cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 			}
@@ -170,8 +184,7 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 			}
 		case _ = <-tagReset.C:
 			for h, _ := range clients {
-				clients[h].setSrcTags = false
-				clients[h].setDestTags = false
+				clients[h].ResetTags()
 			}
 		case _ = <-tagTick.C:
 			if newTag {
