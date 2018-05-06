@@ -17,13 +17,15 @@ import (
 	go_metrics "github.com/kentik/go-metrics"
 	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow"
+	"github.com/kentik/libkflow/api"
 )
 
 const (
-	CHAN_SLACK     = 1000
-	PROGRAM_NAME   = "gcevpc"
-	TAG_CHECK_TIME = 60 * time.Second
-	TAG_RESET_TIME = 1 * time.Hour
+	CHAN_SLACK           = 1000
+	PROGRAM_NAME         = "gcevpc"
+	TAG_CHECK_TIME       = 60 * time.Second
+	INTERFACE_RESET_TIME = 24 * time.Hour
+	TAG_RESET_TIME       = 24 * time.Hour
 )
 
 type Cp struct {
@@ -34,6 +36,7 @@ type Cp struct {
 	email     string
 	token     string
 	plan      int
+	isDevice  bool
 	site      int
 	client    *pubsub.Client
 	hippo     *hippo.Client
@@ -48,7 +51,7 @@ type hc struct {
 	Depth int     `json:"Depth"`
 }
 
-func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int) (*Cp, error) {
+func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, isDevice bool) (*Cp, error) {
 	cp := Cp{
 		log:       log,
 		sub:       sub,
@@ -58,6 +61,7 @@ func NewCp(log logger.ContextL, sub string, project string, dest string, email s
 		token:     token,
 		plan:      plan,
 		site:      site,
+		isDevice:  isDevice,
 		msgs:      make(chan *types.GCELogLine, CHAN_SLACK),
 		rateCheck: go_metrics.NewMeter(),
 		rateError: go_metrics.NewMeter(),
@@ -84,6 +88,9 @@ type flowClient struct {
 	sender          *libkflow.Sender
 	setSrcHostTags  map[string]bool
 	setDestHostTags map[string]bool
+	interfaces      map[string]api.InterfaceUpdate
+	doneInit        bool
+	nextInterface   uint64
 }
 
 func NewFlowClient(client *libkflow.Sender) *flowClient {
@@ -91,12 +98,40 @@ func NewFlowClient(client *libkflow.Sender) *flowClient {
 		sender:          client,
 		setSrcHostTags:  map[string]bool{},
 		setDestHostTags: map[string]bool{},
+		interfaces:      map[string]api.InterfaceUpdate{},
+		nextInterface:   1,
 	}
 }
 
 func (c *flowClient) ResetTags() {
 	c.setSrcHostTags = map[string]bool{}
 	c.setDestHostTags = map[string]bool{}
+}
+
+func (c *flowClient) UpdateInterfaces(isFromInterfaceUpdate bool) error {
+
+	// Only run from not interfaces once
+	if c.doneInit && !isFromInterfaceUpdate {
+		return nil
+	}
+	c.doneInit = true
+
+	client := c.sender.GetClient()
+	if client != nil {
+		err := client.UpdateInterfacesDirectly(c.sender.Device, c.interfaces)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *flowClient) AddInterface(intf api.InterfaceUpdate) {
+	intf.Index = c.nextInterface
+	intf.Desc = fmt.Sprintf("kentik.%d", c.nextInterface)
+	c.nextInterface++
+
+	c.interfaces[intf.Desc] = intf
 }
 
 // Main loop. Take in messages, turn them into kflow, and send them out.
@@ -118,10 +153,13 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 	tagReset := time.NewTicker(TAG_RESET_TIME)
 	defer tagReset.Stop()
 
+	updateInterfaces := time.NewTicker(INTERFACE_RESET_TIME)
+	defer updateInterfaces.Stop()
+
 	for {
 		select {
 		case msg := <-cp.msgs:
-			host := msg.GetHost()
+			host := msg.GetHost(cp.isDevice)
 			vmname := msg.GetVMName()
 			if _, ok := clients[host]; !ok {
 				var client *libkflow.Sender
@@ -161,10 +199,17 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 							fullUpserts = nu
 							newTag = true
 						}
+
+						// And load in an interface for this guy here.
+						if intf, err := msg.GetInterface(); err != nil {
+							cp.log.Errorf("Error getting interface: %v", err)
+						} else {
+							clients[host].AddInterface(intf)
+						}
 					}
 					clients[host].setSrcHostTags[vmname] = true
+					cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 				}
-				cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 			} else {
 				if !clients[host].setDestHostTags[vmname] {
 					if clients[host].sender != nil {
@@ -177,12 +222,19 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 						}
 					}
 					clients[host].setDestHostTags[vmname] = true
+					cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 				}
-				cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 			}
 
 			if clients[host].sender != nil {
 				clients[host].sender.Send(req)
+			}
+		case _ = <-updateInterfaces.C:
+			for h, _ := range clients {
+				err := clients[h].UpdateInterfaces(true)
+				if err != nil {
+					cp.log.Errorf("Error updating interfaces: %v", err)
+				}
 			}
 		case _ = <-tagReset.C:
 			for h, _ := range clients {
@@ -196,6 +248,15 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 				} else {
 					cp.log.Infof("%d tags set", sent)
 				}
+
+				// And send interfaces if this is the first time though.
+				for h, _ := range clients {
+					err = clients[h].UpdateInterfaces(false)
+					if err != nil {
+						cp.log.Errorf("Error updating interfaces: %v", err)
+					}
+				}
+
 				newTag = false
 			}
 

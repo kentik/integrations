@@ -146,13 +146,17 @@ type Labels struct {
 	SubnetworkName string `json:"subnetwork_name"`
 }
 
-func (m *GCELogLine) GetHost() string {
+func (m *GCELogLine) GetHost(isDevice bool) string {
+	if isDevice {
+		return m.GetVMName()
+	}
+
 	host := ""
 
 	if m.IsIn() {
-		host = m.Payload.SrcVPC.Name
+		host = m.Payload.SrcVPC.SubnetworkName
 	} else {
-		host = m.Payload.DestVPC.Name
+		host = m.Payload.DestVPC.SubnetworkName
 	}
 
 	// Hack to avoid breaking Kentik.
@@ -169,6 +173,15 @@ func (m *GCELogLine) GetVMName() string {
 	} else {
 		return m.Payload.DestInstance.VMName
 	}
+}
+
+func (m *GCELogLine) GetInterface() (api.InterfaceUpdate, error) {
+	intr := api.InterfaceUpdate{
+		Alias:   m.GetVMName(),
+		Address: m.Payload.Connection.SrcIP,
+	}
+
+	return intr, nil
 }
 
 func (m *GCELogLine) GetDeviceConfig(plan int, site int, host string) *api.DeviceCreate {
@@ -235,6 +248,8 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 				req.Upserts[0].Val = m.Payload.SrcInstance.Zone
 			case SRC_VPC_SNN:
 				req.Upserts[0].Val = m.Payload.SrcVPC.SubnetworkName
+			case REPORTER:
+				req.Upserts[0].Val = m.Payload.Reporter
 			}
 		} else {
 			req = &hippo.Req{
@@ -264,7 +279,6 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 				req.Upserts[0].Val = m.Payload.DestVPC.SubnetworkName
 			case REPORTER:
 				req.Upserts[0].Val = m.Payload.Reporter
-				req.Upserts[0].Rules[0].Dir = "either"
 			}
 		}
 

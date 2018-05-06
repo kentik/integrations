@@ -21,6 +21,7 @@ var (
 	FLAG_token     = flag.String("api_token", "", "Kentik Email Token")
 	FLAG_plan      = flag.Int("plan_id", 0, "Kentik Plan ID to use for devices")
 	FLAG_site      = flag.Int("site_id", 0, "Kentik Site ID to use for devices")
+	FLAG_isDevice  = flag.Bool("is_device_primary", false, "Create one device in kentik per vm, vs on device per VPC.")
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 	bs := baseserver.Boilerplate("gcevpc", eVeg, kt.DefaultGCEVPCProperties)
 	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCEVPC"}, bs.Logger)
 
-	cpr, err := cp.NewCp(lc, *FLAG_sourceSub, *FLAG_projectID, *FLAG_dstAddr, *FLAG_email, *FLAG_token, *FLAG_plan, *FLAG_site)
+	cpr, err := cp.NewCp(lc, *FLAG_sourceSub, *FLAG_projectID, *FLAG_dstAddr, *FLAG_email, *FLAG_token, *FLAG_plan, *FLAG_site, *FLAG_isDevice)
 	if err != nil {
 		bs.Fail(fmt.Sprintf("Cannot start gcevpc: %v", err))
 	}
