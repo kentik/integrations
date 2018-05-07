@@ -29,20 +29,22 @@ const (
 )
 
 type Cp struct {
-	log       logger.ContextL
-	sub       string
-	project   string
-	dest      string
-	email     string
-	token     string
-	plan      int
-	isDevice  bool
-	site      int
-	client    *pubsub.Client
-	hippo     *hippo.Client
-	rateCheck go_metrics.Meter
-	rateError go_metrics.Meter
-	msgs      chan *types.GCELogLine
+	log           logger.ContextL
+	sub           string
+	project       string
+	dest          string
+	email         string
+	token         string
+	plan          int
+	isDevice      bool
+	site          int
+	client        *pubsub.Client
+	hippo         *hippo.Client
+	rateCheck     go_metrics.Meter
+	rateError     go_metrics.Meter
+	msgs          chan *types.GCELogLine
+	dropIntraDest bool
+	dropIntraSrc  bool
 }
 
 type hc struct {
@@ -51,20 +53,22 @@ type hc struct {
 	Depth int     `json:"Depth"`
 }
 
-func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, isDevice bool) (*Cp, error) {
+func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, isDevice bool, dropIntraDest bool, dropIntraSrc bool) (*Cp, error) {
 	cp := Cp{
-		log:       log,
-		sub:       sub,
-		project:   project,
-		dest:      dest,
-		email:     email,
-		token:     token,
-		plan:      plan,
-		site:      site,
-		isDevice:  isDevice,
-		msgs:      make(chan *types.GCELogLine, CHAN_SLACK),
-		rateCheck: go_metrics.NewMeter(),
-		rateError: go_metrics.NewMeter(),
+		log:           log,
+		sub:           sub,
+		project:       project,
+		dest:          dest,
+		email:         email,
+		token:         token,
+		plan:          plan,
+		site:          site,
+		isDevice:      isDevice,
+		msgs:          make(chan *types.GCELogLine, CHAN_SLACK),
+		rateCheck:     go_metrics.NewMeter(),
+		rateError:     go_metrics.NewMeter(),
+		dropIntraDest: dropIntraDest,
+		dropIntraSrc:  dropIntraSrc,
 	}
 
 	hc := hippo.NewHippo("", email, token)
@@ -126,12 +130,12 @@ func (c *flowClient) UpdateInterfaces(isFromInterfaceUpdate bool) error {
 	return nil
 }
 
-func (c *flowClient) AddInterface(intf api.InterfaceUpdate) {
+func (c *flowClient) AddInterface(intf *api.InterfaceUpdate) {
 	intf.Index = c.nextInterface
 	intf.Desc = fmt.Sprintf("kentik.%d", c.nextInterface)
 	c.nextInterface++
 
-	c.interfaces[intf.Desc] = intf
+	c.interfaces[intf.Desc] = *intf
 }
 
 // Main loop. Take in messages, turn them into kflow, and send them out.
@@ -159,8 +163,18 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 	for {
 		select {
 		case msg := <-cp.msgs:
-			host := msg.GetHost(cp.isDevice)
-			vmname := msg.GetVMName()
+			host, err := msg.GetHost(cp.isDevice)
+			if err != nil {
+				cp.log.Errorf("Invalid log line: %v", err)
+				continue
+			}
+
+			vmname, err := msg.GetVMName()
+			if err != nil {
+				cp.log.Errorf("Invalid log line: %v", err)
+				continue
+			}
+
 			if _, ok := clients[host]; !ok {
 				var client *libkflow.Sender
 				var err error
@@ -187,7 +201,11 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 				}
 			}
 
-			req := msg.ToFlow(customs[host])
+			req, err := msg.ToFlow(customs[host], cp.dropIntraDest, cp.dropIntraSrc)
+			if err != nil {
+				cp.log.Errorf("Invalid log line: %v", err)
+				continue
+			}
 
 			if msg.IsIn() {
 				if !clients[host].setSrcHostTags[vmname] {
@@ -326,7 +344,11 @@ func (cp *Cp) runSubscription(sub *pubsub.Subscription) {
 				cp.log.Errorf("Error reading log line: %v", err)
 			} else {
 				cp.rateCheck.Mark(1)
-				cp.msgs <- &data
+				if data.IsValid() {
+					cp.msgs <- &data
+				} else {
+					cp.rateError.Mark(1)
+				}
 			}
 		})
 		if err != nil {

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
@@ -146,12 +147,21 @@ type Labels struct {
 	SubnetworkName string `json:"subnetwork_name"`
 }
 
-func (m *GCELogLine) GetHost(isDevice bool) string {
-	if isDevice {
-		return m.GetVMName()
-	}
+func (m *GCELogLine) GetHost(isDevice bool) (host string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			json, errI := json.Marshal(m)
+			if errI != nil {
+				err = errI
+			} else {
+				err = fmt.Errorf("%v -> %s", r, string(json))
+			}
+		}
+	}()
 
-	host := ""
+	if isDevice {
+		host, err = m.GetVMName()
+	}
 
 	if m.IsIn() {
 		host = m.Payload.SrcVPC.SubnetworkName
@@ -164,20 +174,38 @@ func (m *GCELogLine) GetHost(isDevice bool) string {
 		host = "gce_" + host
 	}
 
-	return host
+	return host, nil
 }
 
-func (m *GCELogLine) GetVMName() string {
+func (m *GCELogLine) GetVMName() (host string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			json, errI := json.Marshal(m)
+			if errI != nil {
+				err = errI
+			} else {
+				err = fmt.Errorf("%v -> %s", r, string(json))
+			}
+		}
+	}()
+
 	if m.IsIn() {
-		return m.Payload.SrcInstance.VMName
+		host = m.Payload.SrcInstance.VMName
 	} else {
-		return m.Payload.DestInstance.VMName
+		host = m.Payload.DestInstance.VMName
 	}
+
+	return host, nil
 }
 
-func (m *GCELogLine) GetInterface() (api.InterfaceUpdate, error) {
-	intr := api.InterfaceUpdate{
-		Alias:   m.GetVMName(),
+func (m *GCELogLine) GetInterface() (*api.InterfaceUpdate, error) {
+	vm, err := m.GetVMName()
+	if err != nil {
+		return nil, err
+	}
+
+	intr := &api.InterfaceUpdate{
+		Alias:   vm,
 		Address: m.Payload.Connection.SrcIP,
 	}
 
@@ -310,15 +338,36 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 	return fullUpserts, done, nil
 }
 
+func (m *GCELogLine) IsValid() bool {
+	return m.Payload != nil
+}
+
 func (m *GCELogLine) IsIn() bool {
 	return m.Payload.SrcInstance != nil && m.Payload.SrcInstance.VMName != ""
 }
 
-func (m *GCELogLine) ToFlow(customs map[string]uint32) *flow.Flow {
+func (m *GCELogLine) IsInternal() bool {
+	return (m.Payload.SrcInstance != nil && m.Payload.SrcInstance.VMName != "") && (m.Payload.DestInstance != nil && m.Payload.DestInstance.VMName != "")
+}
 
-	var in flow.Flow
+func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraSrc bool) (in *flow.Flow, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			json, errI := json.Marshal(m)
+			if errI != nil {
+				err = errI
+			} else {
+				err = fmt.Errorf("%v -> %s", r, string(json))
+			}
+		}
+	}()
+
 	if m.IsIn() {
-		in = flow.Flow{
+		if dropIntraSrc && m.IsInternal() {
+			return nil, nil
+		}
+
+		in = &flow.Flow{
 			TimestampNano: time.Now().Unix(),
 			InBytes:       getUInt64(&m.Payload.Bytes),
 			InPkts:        getUInt64(&m.Payload.Pkts),
@@ -340,7 +389,11 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32) *flow.Flow {
 			},
 		}
 	} else {
-		in = flow.Flow{
+		if dropIntraDest && m.IsInternal() {
+			return nil, nil
+		}
+
+		in = &flow.Flow{
 			TimestampNano: time.Now().Unix(),
 			OutBytes:      getUInt64(&m.Payload.Bytes),
 			OutPkts:       getUInt64(&m.Payload.Pkts),
@@ -392,5 +445,5 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32) *flow.Flow {
 		}
 	}
 
-	return &in
+	return in, err
 }
