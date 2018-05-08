@@ -24,7 +24,7 @@ var (
 	FLAG_isDevice      = flag.Bool("is_device_primary", false, "Create one device in kentik per vm, vs on device per VPC.")
 	FLAG_dropIntraDest = flag.Bool("drop_intra_dest", false, "Drop all intra-VPC Dest logs.")
 	FLAG_dropIntraSrc  = flag.Bool("drop_intra_src", false, "Drop all intra-VPC Src logs")
-	FLAG_writeStdout   = flag.Bool("stdout", false, "Write flows to stdout.")
+	FLAG_writeStdout   = flag.Bool("json", false, "Write flows to stdout in json form.")
 )
 
 func main() {
