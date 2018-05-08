@@ -7,6 +7,10 @@ import (
 	"github.com/kentik/libkflow/api"
 )
 
+const (
+	DEFAULT_SPEED = 10000
+)
+
 type FlowClient struct {
 	Sender          *libkflow.Sender
 	SetSrcHostTags  map[string]bool
@@ -31,12 +35,14 @@ func NewFlowClient(client *libkflow.Sender) *FlowClient {
 				Desc:    "ext0",
 				Alias:   "",
 				Address: "127.0.0.1",
+				Speed:   DEFAULT_SPEED,
 			},
 			"int0": api.InterfaceUpdate{ // Pre-populate this with int1 for internal traffic.
 				Index:   2,
 				Desc:    "int0",
 				Alias:   "",
 				Address: "127.0.0.2",
+				Speed:   DEFAULT_SPEED,
 			},
 		},
 		nextInterface: 3,
@@ -76,6 +82,7 @@ func (c *FlowClient) UpdateInterfaces(isFromInterfaceUpdate bool) error {
 
 func (c *FlowClient) AddInterface(intf *api.InterfaceUpdate) {
 	intf.Index = uint64(c.nextInterface)
+	intf.Speed = DEFAULT_SPEED
 	c.idsByAlias[intf.Alias] = c.nextInterface
 	intf.Desc = fmt.Sprintf("kentik.%d", c.nextInterface)
 	c.nextInterface++
