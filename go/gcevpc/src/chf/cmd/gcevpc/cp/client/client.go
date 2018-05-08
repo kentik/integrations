@@ -23,12 +23,12 @@ func NewFlowClient(client *libkflow.Sender) *FlowClient {
 		SetSrcHostTags:  map[string]bool{},
 		SetDestHostTags: map[string]bool{},
 		idsByAlias: map[string]uint32{
-			"": 1,
+			"": 1, // Unknown -> ext0
 		},
 		interfaces: map[string]api.InterfaceUpdate{
-			"eth0": api.InterfaceUpdate{ // Pre-populate this with eth0 for now for external traffic
+			"ext0": api.InterfaceUpdate{ // Pre-populate this with ext0 for now for external traffic
 				Index:   1,
-				Desc:    "eth0",
+				Desc:    "ext0",
 				Alias:   "",
 				Address: "127.0.0.1",
 			},
