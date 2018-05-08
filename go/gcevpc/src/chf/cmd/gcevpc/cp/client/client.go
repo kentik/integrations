@@ -26,14 +26,20 @@ func NewFlowClient(client *libkflow.Sender) *FlowClient {
 			"": 1,
 		},
 		interfaces: map[string]api.InterfaceUpdate{
-			"eth0": api.InterfaceUpdate{ // Pre-populate this with eth0 for now.
+			"eth0": api.InterfaceUpdate{ // Pre-populate this with eth0 for now for external traffic
 				Index:   1,
 				Desc:    "eth0",
 				Alias:   "",
 				Address: "127.0.0.1",
 			},
+			"int0": api.InterfaceUpdate{ // Pre-populate this with int1 for internal traffic.
+				Index:   2,
+				Desc:    "int0",
+				Alias:   "",
+				Address: "127.0.0.2",
+			},
 		},
-		nextInterface: 2,
+		nextInterface: 3,
 	}
 }
 
@@ -43,7 +49,11 @@ func (c *FlowClient) ResetTags() {
 }
 
 func (c *FlowClient) GetInterfaceID(host string) uint32 {
-	return c.idsByAlias[host]
+	if id, ok := c.idsByAlias[host]; ok {
+		return id
+	} else {
+		return c.idsByAlias["int0"] // Known vm, but not on this host, so we send out the int0 interface.
+	}
 }
 
 func (c *FlowClient) UpdateInterfaces(isFromInterfaceUpdate bool) error {
