@@ -1,8 +1,8 @@
 package version
 
 const (
-	VERSION_STRING = "dirty-45dd3013fdbc4042145650e4e8c4e4507617adbb"
-    DATE_STRING = "Sun, 6 May 2018 03:08:13 +0000"
+	VERSION_STRING = "dirty-41e64fc457ab0230fdaa3eacfbf432988f05e048"
+    DATE_STRING = "Mon, 7 May 2018 22:07:38 +0000"
     PLATFORM_STRING = "Linux 3.16.0-4-amd64 x86_64 [go version go1.9.1 linux/amd64]"
     DISTRO_STRING = "Debian GNU/Linux 8.7 (jessie)"
 )

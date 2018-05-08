@@ -350,6 +350,11 @@ func (m *GCELogLine) IsInternal() bool {
 	return (m.Payload.SrcInstance != nil && m.Payload.SrcInstance.VMName != "") && (m.Payload.DestInstance != nil && m.Payload.DestInstance.VMName != "")
 }
 
+func (m *GCELogLine) ToJson() []byte {
+	json, _ := json.Marshal(m)
+	return json
+}
+
 func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraSrc bool) (in *flow.Flow, err error) {
 	defer func() {
 		if r := recover(); r != nil {

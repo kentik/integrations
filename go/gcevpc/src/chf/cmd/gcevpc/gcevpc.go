@@ -24,6 +24,7 @@ var (
 	FLAG_isDevice      = flag.Bool("is_device_primary", false, "Create one device in kentik per vm, vs on device per VPC.")
 	FLAG_dropIntraDest = flag.Bool("drop_intra_dest", false, "Drop all intra-VPC Dest logs.")
 	FLAG_dropIntraSrc  = flag.Bool("drop_intra_src", false, "Drop all intra-VPC Src logs")
+	FLAG_writeStdout   = flag.Bool("stdout", false, "Write flows to stdout.")
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
 	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCEVPC"}, bs.Logger)
 
 	cpr, err := cp.NewCp(lc, *FLAG_sourceSub, *FLAG_projectID, *FLAG_dstAddr, *FLAG_email, *FLAG_token, *FLAG_plan, *FLAG_site, *FLAG_isDevice,
-		*FLAG_dropIntraDest, *FLAG_dropIntraSrc)
+		*FLAG_dropIntraDest, *FLAG_dropIntraSrc, *FLAG_writeStdout)
 	if err != nil {
 		bs.Fail(fmt.Sprintf("Cannot start gcevpc: %v", err))
 	}

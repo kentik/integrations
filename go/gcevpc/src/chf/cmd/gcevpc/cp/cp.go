@@ -45,6 +45,7 @@ type Cp struct {
 	msgs          chan *types.GCELogLine
 	dropIntraDest bool
 	dropIntraSrc  bool
+	writeStdOut   bool
 }
 
 type hc struct {
@@ -53,7 +54,7 @@ type hc struct {
 	Depth int     `json:"Depth"`
 }
 
-func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, isDevice bool, dropIntraDest bool, dropIntraSrc bool) (*Cp, error) {
+func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, isDevice, dropIntraDest, dropIntraSrc, writeStdOut bool) (*Cp, error) {
 	cp := Cp{
 		log:           log,
 		sub:           sub,
@@ -69,6 +70,7 @@ func NewCp(log logger.ContextL, sub string, project string, dest string, email s
 		rateError:     go_metrics.NewMeter(),
 		dropIntraDest: dropIntraDest,
 		dropIntraSrc:  dropIntraSrc,
+		writeStdOut:   writeStdOut,
 	}
 
 	hc := hippo.NewHippo("", email, token)
@@ -246,6 +248,10 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 
 			if clients[host].sender != nil {
 				clients[host].sender.Send(req)
+			}
+
+			if cp.writeStdOut {
+				cp.log.Infof("%s", string(msg.ToJson()))
 			}
 		case _ = <-updateInterfaces.C:
 			for h, _ := range clients {
