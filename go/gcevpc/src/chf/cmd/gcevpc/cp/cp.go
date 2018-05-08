@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	flowclient "chf/cmd/gcevpc/cp/client"
 	"chf/cmd/gcevpc/cp/types"
 	"version"
 
@@ -17,7 +18,6 @@ import (
 	go_metrics "github.com/kentik/go-metrics"
 	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow"
-	"github.com/kentik/libkflow/api"
 )
 
 const (
@@ -90,68 +90,48 @@ func (cp *Cp) cleanup() {
 	}
 }
 
-type flowClient struct {
-	sender          *libkflow.Sender
-	setSrcHostTags  map[string]bool
-	setDestHostTags map[string]bool
-	interfaces      map[string]api.InterfaceUpdate
-	doneInit        bool
-	nextInterface   uint64
-}
+func (cp *Cp) initClient(msg *types.GCELogLine, host string, errors chan error, clients map[string]*flowclient.FlowClient,
+	customs map[string]map[string]uint32) error {
 
-func NewFlowClient(client *libkflow.Sender) *flowClient {
-	return &flowClient{
-		sender:          client,
-		setSrcHostTags:  map[string]bool{},
-		setDestHostTags: map[string]bool{},
-		interfaces:      map[string]api.InterfaceUpdate{},
-		nextInterface:   1,
+	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, version.VERSION_STRING)
+	if cp.dest != "" {
+		config.SetFlow(cp.dest)
 	}
-}
 
-func (c *flowClient) ResetTags() {
-	c.setSrcHostTags = map[string]bool{}
-	c.setDestHostTags = map[string]bool{}
-}
+	var client *libkflow.Sender
+	var err error
 
-func (c *flowClient) UpdateInterfaces(isFromInterfaceUpdate bool) error {
-
-	// Only run from not interfaces once
-	if c.doneInit && !isFromInterfaceUpdate {
-		return nil
-	}
-	c.doneInit = true
-
-	client := c.sender.GetClient()
-	if client != nil {
-		err := client.UpdateInterfacesDirectly(c.sender.Device, c.interfaces)
+	client, err = libkflow.NewSenderWithDeviceName(host, errors, config)
+	if err != nil {
+		dconf := msg.GetDeviceConfig(cp.plan, cp.site, host)
+		cp.log.Infof("Creating new device: %s -> %v", dconf.Name, dconf.IPs)
+		client, err = libkflow.NewSenderWithNewDevice(dconf, errors, config)
 		if err != nil {
-			return err
+			return fmt.Errorf("Cannot start client: %s %v", host, err)
+		}
+	} else {
+		cp.log.Infof("Found existing device: %s", host)
+	}
+
+	clients[host] = flowclient.NewFlowClient(client)
+	customs[host] = map[string]uint32{}
+
+	if client != nil {
+		for _, c := range client.Device.Customs {
+			customs[host][c.Name] = uint32(c.ID)
 		}
 	}
+
 	return nil
-}
-
-func (c *flowClient) AddInterface(intf *api.InterfaceUpdate) {
-	intf.Index = c.nextInterface
-	intf.Desc = fmt.Sprintf("kentik.%d", c.nextInterface)
-	c.nextInterface++
-
-	c.interfaces[intf.Desc] = *intf
 }
 
 // Main loop. Take in messages, turn them into kflow, and send them out.
 func (cp *Cp) generateKflow(ctx context.Context) error {
-	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, version.VERSION_STRING)
-	clients := map[string]*flowClient{}
+	clients := map[string]*flowclient.FlowClient{}
 	customs := map[string]map[string]uint32{}
 	errors := make(chan error, CHAN_SLACK)
 	fullUpserts := map[string][]hippo.Upsert{}
 	newTag := false
-
-	if cp.dest != "" {
-		config.SetFlow(cp.dest)
-	}
 
 	tagTick := time.NewTicker(TAG_CHECK_TIME)
 	defer tagTick.Stop()
@@ -178,40 +158,14 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 			}
 
 			if _, ok := clients[host]; !ok {
-				var client *libkflow.Sender
-				var err error
-
-				client, err = libkflow.NewSenderWithDeviceName(host, errors, config)
 				if err != nil {
-					dconf := msg.GetDeviceConfig(cp.plan, cp.site, host)
-					cp.log.Infof("Creating new device: %s -> %v", dconf.Name, dconf.IPs)
-					client, err = libkflow.NewSenderWithNewDevice(dconf, errors, config)
-					if err != nil {
-						cp.log.Errorf("Cannot start client: %s %v", host, err)
-					}
-				} else {
-					cp.log.Infof("Found existing device: %s", host)
+					cp.log.Errorf("InitClient: %v", err)
 				}
-
-				clients[host] = NewFlowClient(client)
-				customs[host] = map[string]uint32{}
-
-				if client != nil {
-					for _, c := range client.Device.Customs {
-						customs[host][c.Name] = uint32(c.ID)
-					}
-				}
-			}
-
-			req, err := msg.ToFlow(customs[host], cp.dropIntraDest, cp.dropIntraSrc)
-			if err != nil {
-				cp.log.Errorf("Invalid log line: %v", err)
-				continue
 			}
 
 			if msg.IsIn() {
-				if !clients[host].setSrcHostTags[vmname] {
-					if clients[host].sender != nil {
+				if !clients[host].SetSrcHostTags[vmname] {
+					if clients[host].Sender != nil {
 						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
 							cp.log.Errorf("Error setting src tags: %v", err)
 						} else {
@@ -227,12 +181,12 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 							clients[host].AddInterface(intf)
 						}
 					}
-					clients[host].setSrcHostTags[vmname] = true
+					clients[host].SetSrcHostTags[vmname] = true
 					cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 				}
 			} else {
-				if !clients[host].setDestHostTags[vmname] {
-					if clients[host].sender != nil {
+				if !clients[host].SetDestHostTags[vmname] {
+					if clients[host].Sender != nil {
 						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
 							cp.log.Errorf("Error setting dst tags: %v", err)
 						} else {
@@ -241,15 +195,24 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 							newTag = true
 						}
 					}
-					clients[host].setDestHostTags[vmname] = true
+					clients[host].SetDestHostTags[vmname] = true
 					cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 				}
 			}
 
-			if clients[host].sender != nil {
-				clients[host].sender.Send(req)
+			// Turn into Kflow
+			req, err := msg.ToFlow(customs[host], clients[host], cp.dropIntraDest, cp.dropIntraSrc)
+			if err != nil {
+				cp.log.Errorf("Invalid log line: %v", err)
+				continue
 			}
 
+			// Send to kentik.
+			if clients[host].Sender != nil {
+				clients[host].Sender.Send(req)
+			}
+
+			// If we are logging these, log away.
 			if cp.writeStdOut {
 				cp.log.Infof("%s", string(msg.ToJson()))
 			}

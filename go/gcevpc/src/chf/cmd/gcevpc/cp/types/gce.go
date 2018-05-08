@@ -6,6 +6,8 @@ import (
 	"net"
 	"time"
 
+	flowclient "chf/cmd/gcevpc/cp/client"
+
 	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow/api"
 	"github.com/kentik/libkflow/flow"
@@ -355,7 +357,7 @@ func (m *GCELogLine) ToJson() []byte {
 	return json
 }
 
-func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraSrc bool) (in *flow.Flow, err error) {
+func (m *GCELogLine) ToFlow(customs map[string]uint32, client *flowclient.FlowClient, dropIntraDest, dropIntraSrc bool) (in *flow.Flow, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			json, errI := json.Marshal(m)
@@ -366,6 +368,16 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraS
 			}
 		}
 	}()
+
+	srcVM := ""
+	if m.Payload.SrcInstance != nil {
+		srcVM = m.Payload.SrcInstance.VMName
+	}
+
+	dstVM := ""
+	if m.Payload.DestInstance != nil {
+		dstVM = m.Payload.DestInstance.VMName
+	}
 
 	if m.IsIn() {
 		if dropIntraSrc && m.IsInternal() {
@@ -378,8 +390,8 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraS
 			InPkts:        getUInt64(&m.Payload.Pkts),
 			OutBytes:      0,
 			OutPkts:       0,
-			InputPort:     1,
-			OutputPort:    1,
+			InputPort:     client.GetInterfaceID(srcVM),
+			OutputPort:    client.GetInterfaceID(dstVM),
 			L4DstPort:     uint32(m.Payload.Connection.DestPort),
 			L4SrcPort:     uint32(m.Payload.Connection.SrcPort),
 			Protocol:      uint32(m.Payload.Connection.Protocol),
@@ -404,8 +416,8 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraS
 			OutPkts:       getUInt64(&m.Payload.Pkts),
 			InBytes:       0,
 			InPkts:        0,
-			InputPort:     1,
-			OutputPort:    1,
+			InputPort:     client.GetInterfaceID(dstVM),
+			OutputPort:    client.GetInterfaceID(srcVM),
 			L4SrcPort:     uint32(m.Payload.Connection.DestPort),
 			L4DstPort:     uint32(m.Payload.Connection.SrcPort),
 			Protocol:      uint32(m.Payload.Connection.Protocol),
