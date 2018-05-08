@@ -158,6 +158,7 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 			}
 
 			if _, ok := clients[host]; !ok {
+				err := cp.initClient(msg, host, errors, clients, customs)
 				if err != nil {
 					cp.log.Errorf("InitClient: %v", err)
 				}
