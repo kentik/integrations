@@ -9,6 +9,8 @@ import (
 
 const (
 	DEFAULT_SPEED = 10000
+	INTERNAL_PORT = "int0"
+	EXTERNAL_PORT = "ext0"
 )
 
 type FlowClient struct {
@@ -27,25 +29,26 @@ func NewFlowClient(client *libkflow.Sender) *FlowClient {
 		SetSrcHostTags:  map[string]bool{},
 		SetDestHostTags: map[string]bool{},
 		idsByAlias: map[string]uint32{
-			"": 1, // Unknown -> ext0
+			"":            1, // Unknown -> ext0
+			INTERNAL_PORT: 2, // Internals -> int0
 		},
 		interfaces: map[string]api.InterfaceUpdate{
-			"ext0": api.InterfaceUpdate{ // Pre-populate this with ext0 for now for external traffic
+			EXTERNAL_PORT: api.InterfaceUpdate{ // Pre-populate this with ext0 for now for external traffic
 				Index:   1,
-				Desc:    "ext0",
+				Desc:    EXTERNAL_PORT,
 				Alias:   "",
 				Address: "127.0.0.1",
 				Speed:   DEFAULT_SPEED,
 			},
-			"int0": api.InterfaceUpdate{ // Pre-populate this with int1 for internal traffic.
+			INTERNAL_PORT: api.InterfaceUpdate{ // Pre-populate this with int1 for internal traffic.
 				Index:   2,
-				Desc:    "int0",
+				Desc:    INTERNAL_PORT,
 				Alias:   "",
 				Address: "127.0.0.2",
 				Speed:   DEFAULT_SPEED,
 			},
 		},
-		nextInterface: 3,
+		nextInterface: 3, // Now that 1 and 2 are taken, start with 3 here.
 	}
 }
 
@@ -58,7 +61,7 @@ func (c *FlowClient) GetInterfaceID(host string) uint32 {
 	if id, ok := c.idsByAlias[host]; ok {
 		return id
 	} else {
-		return c.idsByAlias["int0"] // Known vm, but not on this host, so we send out the int0 interface.
+		return c.idsByAlias[INTERNAL_PORT] // Known vm, but not on this host, so we send out the int0 interface.
 	}
 }
 
