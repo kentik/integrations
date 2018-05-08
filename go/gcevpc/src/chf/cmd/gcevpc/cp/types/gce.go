@@ -206,12 +206,17 @@ func (m *GCELogLine) GetInterface() (*api.InterfaceUpdate, error) {
 		return nil, err
 	}
 
-	intr := &api.InterfaceUpdate{
-		Alias:   vm,
-		Address: m.Payload.Connection.SrcIP,
+	if m.IsIn() {
+		return &api.InterfaceUpdate{
+			Alias:   vm,
+			Address: m.Payload.Connection.SrcIP,
+		}, nil
+	} else {
+		return &api.InterfaceUpdate{
+			Alias:   vm,
+			Address: m.Payload.Connection.DestIP,
+		}, nil
 	}
-
-	return intr, nil
 }
 
 func (m *GCELogLine) GetDeviceConfig(plan int, site int, host string) *api.DeviceCreate {

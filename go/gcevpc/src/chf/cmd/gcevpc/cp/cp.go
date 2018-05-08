@@ -195,6 +195,13 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 							fullUpserts = nu
 							newTag = true
 						}
+
+						// And load in an interface for this guy here.
+						if intf, err := msg.GetInterface(); err != nil {
+							cp.log.Errorf("Error getting interface: %v", err)
+						} else {
+							clients[host].AddInterface(intf)
+						}
 					}
 					clients[host].SetDestHostTags[vmname] = true
 					cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)

@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"hash/fnv"
 
 	"github.com/kentik/libkflow"
 	"github.com/kentik/libkflow/api"
@@ -20,7 +21,6 @@ type FlowClient struct {
 	interfaces      map[string]api.InterfaceUpdate
 	idsByAlias      map[string]uint32
 	doneInit        bool
-	nextInterface   uint32
 }
 
 func NewFlowClient(client *libkflow.Sender) *FlowClient {
@@ -48,7 +48,6 @@ func NewFlowClient(client *libkflow.Sender) *FlowClient {
 				Speed:   DEFAULT_SPEED,
 			},
 		},
-		nextInterface: 3, // Now that 1 and 2 are taken, start with 3 here.
 	}
 }
 
@@ -84,11 +83,16 @@ func (c *FlowClient) UpdateInterfaces(isFromInterfaceUpdate bool) error {
 }
 
 func (c *FlowClient) AddInterface(intf *api.InterfaceUpdate) {
-	intf.Index = uint64(c.nextInterface)
+
+	// Interface id is defined by hash on alias.
+	h := fnv.New32a()
+	h.Write([]byte(intf.Alias))
+	interfaceId := h.Sum32()
+
+	intf.Index = uint64(interfaceId)
+	c.idsByAlias[intf.Alias] = interfaceId
+	intf.Desc = fmt.Sprintf("kentik.%d", interfaceId)
 	intf.Speed = DEFAULT_SPEED
-	c.idsByAlias[intf.Alias] = c.nextInterface
-	intf.Desc = fmt.Sprintf("kentik.%d", c.nextInterface)
-	c.nextInterface++
 
 	c.interfaces[intf.Desc] = *intf
 }
