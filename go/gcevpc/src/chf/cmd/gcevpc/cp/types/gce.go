@@ -152,7 +152,7 @@ type Labels struct {
 }
 
 func (m *GCELogLine) GetTimestamp() time.Time {
-	t, _ := time.Parse("2006-01-02T15:04:04", m.Payload.EndTime)
+	t, _ := time.Parse(time.RFC3339, m.Payload.EndTime)
 	return t
 }
 
