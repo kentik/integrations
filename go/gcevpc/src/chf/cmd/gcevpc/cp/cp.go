@@ -42,6 +42,7 @@ type Cp struct {
 	hippo         *hippo.Client
 	rateCheck     go_metrics.Meter
 	rateError     go_metrics.Meter
+	rateInvalid   go_metrics.Meter
 	msgs          chan *types.GCELogLine
 	dropIntraDest bool
 	dropIntraSrc  bool
@@ -49,9 +50,10 @@ type Cp struct {
 }
 
 type hc struct {
-	Check float64 `json:"Check"`
-	Error float64 `json:"Error"`
-	Depth int     `json:"Depth"`
+	Check   float64 `json:"Check"`
+	Error   float64 `json:"Error"`
+	Invalid float64 `json:"Invalid"`
+	Depth   int     `json:"Depth"`
 }
 
 func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, isDevice, dropIntraDest, dropIntraSrc, writeStdOut bool) (*Cp, error) {
@@ -68,6 +70,7 @@ func NewCp(log logger.ContextL, sub string, project string, dest string, email s
 		msgs:          make(chan *types.GCELogLine, CHAN_SLACK),
 		rateCheck:     go_metrics.NewMeter(),
 		rateError:     go_metrics.NewMeter(),
+		rateInvalid:   go_metrics.NewMeter(),
 		dropIntraDest: dropIntraDest,
 		dropIntraSrc:  dropIntraSrc,
 		writeStdOut:   writeStdOut,
@@ -326,7 +329,7 @@ func (cp *Cp) runSubscription(sub *pubsub.Subscription) {
 				if data.IsValid() {
 					cp.msgs <- &data
 				} else {
-					cp.rateError.Mark(1)
+					cp.rateInvalid.Mark(1)
 				}
 			}
 		})
@@ -354,9 +357,10 @@ func (cp *Cp) RunHealthCheck(ctx context.Context, result *baseserver.HealthCheck
 // HttpInfo implements the baseserver.Service interface.
 func (cp *Cp) HttpInfo(w http.ResponseWriter, r *http.Request) {
 	h := hc{
-		Check: cp.rateCheck.Rate5(),
-		Error: cp.rateError.Rate5(),
-		Depth: len(cp.msgs),
+		Check:   cp.rateCheck.Rate5(),
+		Error:   cp.rateError.Rate5(),
+		Invalid: cp.rateInvalid.Rate5(),
+		Depth:   len(cp.msgs),
 	}
 
 	b, err := json.Marshal(h)

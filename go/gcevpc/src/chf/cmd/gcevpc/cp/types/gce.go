@@ -68,6 +68,8 @@ const (
 	DST_ZONE       = "c_gce_dst_zone"
 	DST_VPC_SNN    = "c_gce_dst_vpc_snn"
 	REPORTER       = "c_gce_reporter"
+
+	RECV_WINDOW = -1 * 60 * time.Second
 )
 
 var (
@@ -147,6 +149,11 @@ type Labels struct {
 	ProjectID      string `json:"project_id"`
 	SubnetworkID   string `json:"subnetwork_id"`
 	SubnetworkName string `json:"subnetwork_name"`
+}
+
+func (m *GCELogLine) GetTimestamp() time.Time {
+	t, _ := time.Parse("2006-01-02T15:04:04", m.Payload.EndTime)
+	return t
 }
 
 func (m *GCELogLine) GetHost(isDevice bool) (host string, err error) {
@@ -346,7 +353,12 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 }
 
 func (m *GCELogLine) IsValid() bool {
-	return m.Payload != nil
+	if m.Payload != nil {
+		t := m.GetTimestamp()
+		return t.After(time.Now().Add(RECV_WINDOW))
+	}
+
+	return false
 }
 
 func (m *GCELogLine) IsIn() bool {
