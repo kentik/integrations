@@ -110,6 +110,8 @@ func (cp *Cp) initClient(msg *types.GCELogLine, host string, errors chan error, 
 		cp.log.Infof("Creating new device: %s -> %v", dconf.Name, dconf.IPs)
 		client, err = libkflow.NewSenderWithNewDevice(dconf, errors, config)
 		if err != nil {
+			clients[host] = flowclient.NewFlowClient(nil)
+			customs[host] = map[string]uint32{}
 			return fmt.Errorf("Cannot start client: %s %v", host, err)
 		}
 	} else {
@@ -164,7 +166,9 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 				err := cp.initClient(msg, host, errors, clients, customs)
 				if err != nil {
 					cp.log.Errorf("InitClient: %v", err)
-					continue
+					if clients[host] == nil {
+						continue
+					}
 				}
 			}
 
