@@ -169,7 +169,7 @@ func (m *GCELogLine) GetHost(isDevice bool) (host string, err error) {
 	}()
 
 	if isDevice {
-		host, err = m.GetVMName()
+		return m.GetVMName()
 	}
 
 	if m.IsIn() {
