@@ -303,10 +303,11 @@ func (cp *Cp) sendHippoTags(upserts map[string][]hippo.Upsert) (int, error) {
 			return done, err
 		} else {
 			if _, err := cp.hippo.Do(context.Background(), req); err != nil {
-				return done, err
+				cp.log.Errorf("Uploading tags %v", err)
+			} else {
+				done++
 			}
 		}
-		done++
 	}
 	return done, nil
 }
