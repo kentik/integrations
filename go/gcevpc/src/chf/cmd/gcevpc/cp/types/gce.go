@@ -69,7 +69,7 @@ const (
 	DST_VPC_SNN    = "c_gce_dst_vpc_snn"
 	REPORTER       = "c_gce_reporter"
 
-	RECV_WINDOW = -1 * 60 * time.Second
+	RECV_WINDOW = -1 * 120 * time.Second
 )
 
 var (
