@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -275,29 +276,49 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 func (cp *Cp) sendHippoTags(upserts map[string][]hippo.Upsert) (int, error) {
 	done := 0
 	for col, up := range upserts {
-		req := &hippo.Req{
-			Replace:  true,
-			Complete: true,
-			Upserts:  up,
+		upComb := map[string]hippo.Upsert{}
+		for _, ups := range up { // Combine here.
+			if _, ok := upComb[ups.Val]; ok {
+				for _, rule := range upComb[ups.Val].Rules {
+					for _, ruleIn := range ups.Rules {
+						if rule.Dir == ruleIn.Dir {
+							rule.IPAddresses = append(rule.IPAddresses, ruleIn.IPAddresses...)
+						}
+					}
+				}
+			} else {
+				upComb[ups.Val] = ups
+			}
 		}
 
-		for _, ups := range up {
+		upFinal := []hippo.Upsert{}
+		for _, ups := range upComb {
+			upFinal = append(upFinal, ups)
+		}
+
+		for _, ups := range upFinal {
 			for _, rule := range ups.Rules {
-				// Dedup IPs here.
+				// Dedup and verify IPs here.
 				ips := map[string]bool{}
 				for _, ip := range rule.IPAddresses {
 					ips[ip] = true
 				}
-				ipsArr := make([]string, len(ips))
-				i := 0
+				ipsArr := make([]string, 0)
 				for ip, _ := range ips {
-					ipsArr[i] = ip
-					i++
+					if ipp := net.ParseIP(ip); ipp != nil {
+						ipsArr = append(ipsArr, ip)
+					}
 				}
 				rule.IPAddresses = ipsArr
 
 				cp.log.Debugf("%s %s -> %v", col, ups.Val, rule.IPAddresses)
 			}
+		}
+
+		req := &hippo.Req{
+			Replace:  true,
+			Complete: true,
+			Upserts:  upFinal,
 		}
 
 		b, err := cp.hippo.EncodeReq(req)
