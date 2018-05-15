@@ -26,7 +26,6 @@ const (
 	PROGRAM_NAME         = "gcevpc"
 	TAG_CHECK_TIME       = 60 * time.Second
 	INTERFACE_RESET_TIME = 24 * time.Hour
-	TAG_RESET_TIME       = 24 * time.Hour
 )
 
 type Cp struct {
@@ -142,9 +141,6 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 	tagTick := time.NewTicker(TAG_CHECK_TIME)
 	defer tagTick.Stop()
 
-	tagReset := time.NewTicker(TAG_RESET_TIME)
-	defer tagReset.Stop()
-
 	updateInterfaces := time.NewTicker(INTERFACE_RESET_TIME)
 	defer updateInterfaces.Stop()
 
@@ -174,8 +170,11 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 			}
 
 			if msg.IsIn() {
-				if !clients[host].SetSrcHostTags[vmname] {
-					if clients[host].Sender != nil {
+				if clients[host].Sender != nil {
+					if _, ok := clients[host].SetSrcHostTags[vmname]; !ok {
+						clients[host].SetSrcHostTags[vmname] = map[string]bool{}
+					}
+					if !clients[host].SetSrcHostTags[vmname][msg.Payload.Connection.SrcIP] {
 						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
 							cp.log.Errorf("Error setting src tags: %v", err)
 						} else {
@@ -190,13 +189,16 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 						} else {
 							clients[host].AddInterface(intf)
 						}
+						clients[host].SetSrcHostTags[vmname][msg.Payload.Connection.SrcIP] = true
+						cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 					}
-					clients[host].SetSrcHostTags[vmname] = true
-					cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 				}
 			} else {
-				if !clients[host].SetDestHostTags[vmname] {
-					if clients[host].Sender != nil {
+				if clients[host].Sender != nil {
+					if _, ok := clients[host].SetDestHostTags[vmname]; !ok {
+						clients[host].SetDestHostTags[vmname] = map[string]bool{}
+					}
+					if !clients[host].SetDestHostTags[vmname][msg.Payload.Connection.DestIP] {
 						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
 							cp.log.Errorf("Error setting dst tags: %v", err)
 						} else {
@@ -211,9 +213,9 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 						} else {
 							clients[host].AddInterface(intf)
 						}
+						clients[host].SetDestHostTags[vmname][msg.Payload.Connection.DestIP] = true
+						cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 					}
-					clients[host].SetDestHostTags[vmname] = true
-					cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 				}
 			}
 
@@ -239,10 +241,6 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 				if err != nil {
 					cp.log.Errorf("Error updating interfaces: %v", err)
 				}
-			}
-		case _ = <-tagReset.C:
-			for h, _ := range clients {
-				clients[h].ResetTags()
 			}
 		case _ = <-tagTick.C:
 			if newTag {

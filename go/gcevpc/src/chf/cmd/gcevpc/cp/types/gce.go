@@ -273,8 +273,7 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 						Val: "",
 						Rules: []hippo.Rule{
 							{
-								Dir: "src",
-								//DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.SrcInstance.VMName), "-", "_", -1)},
+								Dir:         "src",
 								IPAddresses: []string{m.Payload.Connection.SrcIP},
 							},
 						},
@@ -304,7 +303,6 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 							{
 								Dir:         "dst",
 								IPAddresses: []string{m.Payload.Connection.DestIP},
-								//DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.DestInstance.VMName), "-", "_", -1)},
 							},
 						},
 					},

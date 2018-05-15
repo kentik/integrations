@@ -16,8 +16,8 @@ const (
 
 type FlowClient struct {
 	Sender          *libkflow.Sender
-	SetSrcHostTags  map[string]bool
-	SetDestHostTags map[string]bool
+	SetSrcHostTags  map[string]map[string]bool
+	SetDestHostTags map[string]map[string]bool
 	interfaces      map[string]api.InterfaceUpdate
 	idsByAlias      map[string]uint32
 	doneInit        bool
@@ -26,8 +26,8 @@ type FlowClient struct {
 func NewFlowClient(client *libkflow.Sender) *FlowClient {
 	return &FlowClient{
 		Sender:          client,
-		SetSrcHostTags:  map[string]bool{},
-		SetDestHostTags: map[string]bool{},
+		SetSrcHostTags:  map[string]map[string]bool{},
+		SetDestHostTags: map[string]map[string]bool{},
 		idsByAlias: map[string]uint32{
 			"":            1, // Unknown -> ext0
 			INTERNAL_PORT: 2, // Internals -> int0
@@ -49,11 +49,6 @@ func NewFlowClient(client *libkflow.Sender) *FlowClient {
 			},
 		},
 	}
-}
-
-func (c *FlowClient) ResetTags() {
-	c.SetSrcHostTags = map[string]bool{}
-	c.SetDestHostTags = map[string]bool{}
 }
 
 func (c *FlowClient) GetInterfaceID(host string) uint32 {
@@ -91,7 +86,7 @@ func (c *FlowClient) AddInterface(intf *api.InterfaceUpdate) {
 
 	intf.Index = uint64(interfaceId)
 	c.idsByAlias[intf.Alias] = interfaceId
-	intf.Desc = fmt.Sprintf("kentik.%d", interfaceId)
+	intf.Desc = fmt.Sprintf("%d", interfaceId)
 	intf.Speed = DEFAULT_SPEED
 
 	c.interfaces[intf.Desc] = *intf
