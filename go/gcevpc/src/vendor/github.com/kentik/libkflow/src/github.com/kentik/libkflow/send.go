@@ -58,7 +58,11 @@ func (s *Sender) Stop(wait time.Duration) bool {
 }
 
 func (s *Sender) GetClient() *api.Client {
-	return s.client
+	if s != nil {
+		return s.client
+	} else {
+		return nil
+	}
 }
 
 func (s *Sender) start(agg *agg.Agg, client *api.Client, device *api.Device, n int) error {
