@@ -36,7 +36,7 @@ type Cp struct {
 	email         string
 	token         string
 	plan          int
-	isDevice      bool
+	deviceMap     string
 	site          int
 	client        *pubsub.Client
 	hippo         *hippo.Client
@@ -56,7 +56,7 @@ type hc struct {
 	Depth   int     `json:"Depth"`
 }
 
-func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, isDevice, dropIntraDest, dropIntraSrc, writeStdOut bool) (*Cp, error) {
+func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, deviceMap string, dropIntraDest, dropIntraSrc, writeStdOut bool) (*Cp, error) {
 	cp := Cp{
 		log:           log,
 		sub:           sub,
@@ -66,7 +66,7 @@ func NewCp(log logger.ContextL, sub string, project string, dest string, email s
 		token:         token,
 		plan:          plan,
 		site:          site,
-		isDevice:      isDevice,
+		deviceMap:     deviceMap,
 		msgs:          make(chan *types.GCELogLine, CHAN_SLACK),
 		rateCheck:     go_metrics.NewMeter(),
 		rateError:     go_metrics.NewMeter(),
@@ -147,7 +147,7 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 	for {
 		select {
 		case msg := <-cp.msgs:
-			host, err := msg.GetHost(cp.isDevice)
+			host, err := msg.GetHost(cp.deviceMap)
 			if err != nil {
 				cp.log.Errorf("Invalid log line: %v", err)
 				continue

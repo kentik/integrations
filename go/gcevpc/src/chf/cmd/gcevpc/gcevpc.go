@@ -21,10 +21,16 @@ var (
 	FLAG_token         = flag.String("api_token", "", "Kentik Email Token")
 	FLAG_plan          = flag.Int("plan_id", 0, "Kentik Plan ID to use for devices")
 	FLAG_site          = flag.Int("site_id", 0, "Kentik Site ID to use for devices")
-	FLAG_isDevice      = flag.Bool("is_device_primary", false, "Create one device in kentik per vm, vs on device per VPC.")
+	FLAG_device        = flag.String("device_map_type", "subnet", "Define mapping to Kentik device. Options: subnet, vmname, project")
 	FLAG_dropIntraDest = flag.Bool("drop_intra_dest", false, "Drop all intra-VPC Dest logs.")
 	FLAG_dropIntraSrc  = flag.Bool("drop_intra_src", false, "Drop all intra-VPC Src logs")
 	FLAG_writeStdout   = flag.Bool("json", false, "Write flows to stdout in json form.")
+
+	ValidDeviceMappings = map[string]bool{
+		"subnet":  true,
+		"vmname":  true,
+		"project": true,
+	}
 )
 
 func main() {
@@ -38,7 +44,11 @@ func main() {
 	bs := baseserver.Boilerplate("gcevpc", eVeg, kt.DefaultGCEVPCProperties)
 	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCEVPC"}, bs.Logger)
 
-	cpr, err := cp.NewCp(lc, *FLAG_sourceSub, *FLAG_projectID, *FLAG_dstAddr, *FLAG_email, *FLAG_token, *FLAG_plan, *FLAG_site, *FLAG_isDevice,
+	if !ValidDeviceMappings[*FLAG_device] {
+		bs.Fail(fmt.Sprintf("Invalid device mapping: %s. Options: %v", *FLAG_device, ValidDeviceMappings))
+	}
+
+	cpr, err := cp.NewCp(lc, *FLAG_sourceSub, *FLAG_projectID, *FLAG_dstAddr, *FLAG_email, *FLAG_token, *FLAG_plan, *FLAG_site, *FLAG_device,
 		*FLAG_dropIntraDest, *FLAG_dropIntraSrc, *FLAG_writeStdout)
 	if err != nil {
 		bs.Fail(fmt.Sprintf("Cannot start gcevpc: %v", err))

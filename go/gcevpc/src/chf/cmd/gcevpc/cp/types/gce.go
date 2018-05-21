@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	flowclient "chf/cmd/gcevpc/cp/client"
@@ -156,7 +157,7 @@ func (m *GCELogLine) GetTimestamp() time.Time {
 	return t
 }
 
-func (m *GCELogLine) GetHost(isDevice bool) (host string, err error) {
+func (m *GCELogLine) GetHost(deviceMap string) (host string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			json, errI := json.Marshal(m)
@@ -168,14 +169,23 @@ func (m *GCELogLine) GetHost(isDevice bool) (host string, err error) {
 		}
 	}()
 
-	if isDevice {
+	switch deviceMap {
+	case "subnet":
+		if m.IsIn() {
+			host = m.Payload.SrcVPC.SubnetworkName
+		} else {
+			host = m.Payload.DestVPC.SubnetworkName
+		}
+	case "vmname":
 		return m.GetVMName()
-	}
-
-	if m.IsIn() {
-		host = m.Payload.SrcVPC.SubnetworkName
-	} else {
-		host = m.Payload.DestVPC.SubnetworkName
+	case "project":
+		if m.IsIn() {
+			host = strings.Join([]string{m.Payload.SrcInstance.ProjectID, m.Payload.SrcInstance.Region, m.Payload.SrcInstance.Zone}, "_")
+		} else {
+			host = strings.Join([]string{m.Payload.DestInstance.ProjectID, m.Payload.DestInstance.Region, m.Payload.DestInstance.Zone}, "_")
+		}
+	default:
+		return "", fmt.Errorf("Invalid device map: %s", deviceMap)
 	}
 
 	// Hack to avoid breaking Kentik.
