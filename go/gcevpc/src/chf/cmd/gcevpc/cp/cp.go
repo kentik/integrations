@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
+	flowclient "chf/cmd/gcevpc/cp/client"
 	"chf/cmd/gcevpc/cp/types"
 	"version"
 
@@ -17,7 +19,6 @@ import (
 	go_metrics "github.com/kentik/go-metrics"
 	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow"
-	"github.com/kentik/libkflow/api"
 )
 
 const (
@@ -25,7 +26,6 @@ const (
 	PROGRAM_NAME         = "gcevpc"
 	TAG_CHECK_TIME       = 60 * time.Second
 	INTERFACE_RESET_TIME = 24 * time.Hour
-	TAG_RESET_TIME       = 24 * time.Hour
 )
 
 type Cp struct {
@@ -36,12 +36,13 @@ type Cp struct {
 	email         string
 	token         string
 	plan          int
-	isDevice      bool
+	deviceMap     string
 	site          int
 	client        *pubsub.Client
 	hippo         *hippo.Client
 	rateCheck     go_metrics.Meter
 	rateError     go_metrics.Meter
+	rateInvalid   go_metrics.Meter
 	msgs          chan *types.GCELogLine
 	dropIntraDest bool
 	dropIntraSrc  bool
@@ -49,12 +50,13 @@ type Cp struct {
 }
 
 type hc struct {
-	Check float64 `json:"Check"`
-	Error float64 `json:"Error"`
-	Depth int     `json:"Depth"`
+	Check   float64 `json:"Check"`
+	Error   float64 `json:"Error"`
+	Invalid float64 `json:"Invalid"`
+	Depth   int     `json:"Depth"`
 }
 
-func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, isDevice, dropIntraDest, dropIntraSrc, writeStdOut bool) (*Cp, error) {
+func NewCp(log logger.ContextL, sub string, project string, dest string, email string, token string, plan int, site int, deviceMap string, dropIntraDest, dropIntraSrc, writeStdOut bool) (*Cp, error) {
 	cp := Cp{
 		log:           log,
 		sub:           sub,
@@ -64,10 +66,11 @@ func NewCp(log logger.ContextL, sub string, project string, dest string, email s
 		token:         token,
 		plan:          plan,
 		site:          site,
-		isDevice:      isDevice,
+		deviceMap:     deviceMap,
 		msgs:          make(chan *types.GCELogLine, CHAN_SLACK),
 		rateCheck:     go_metrics.NewMeter(),
 		rateError:     go_metrics.NewMeter(),
+		rateInvalid:   go_metrics.NewMeter(),
 		dropIntraDest: dropIntraDest,
 		dropIntraSrc:  dropIntraSrc,
 		writeStdOut:   writeStdOut,
@@ -90,74 +93,53 @@ func (cp *Cp) cleanup() {
 	}
 }
 
-type flowClient struct {
-	sender          *libkflow.Sender
-	setSrcHostTags  map[string]bool
-	setDestHostTags map[string]bool
-	interfaces      map[string]api.InterfaceUpdate
-	doneInit        bool
-	nextInterface   uint64
-}
+func (cp *Cp) initClient(msg *types.GCELogLine, host string, errors chan error, clients map[string]*flowclient.FlowClient,
+	customs map[string]map[string]uint32) error {
 
-func NewFlowClient(client *libkflow.Sender) *flowClient {
-	return &flowClient{
-		sender:          client,
-		setSrcHostTags:  map[string]bool{},
-		setDestHostTags: map[string]bool{},
-		interfaces:      map[string]api.InterfaceUpdate{},
-		nextInterface:   1,
+	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, version.VERSION_STRING)
+	if cp.dest != "" {
+		config.SetFlow(cp.dest)
 	}
-}
 
-func (c *flowClient) ResetTags() {
-	c.setSrcHostTags = map[string]bool{}
-	c.setDestHostTags = map[string]bool{}
-}
+	var client *libkflow.Sender
+	var err error
 
-func (c *flowClient) UpdateInterfaces(isFromInterfaceUpdate bool) error {
-
-	// Only run from not interfaces once
-	if c.doneInit && !isFromInterfaceUpdate {
-		return nil
-	}
-	c.doneInit = true
-
-	client := c.sender.GetClient()
-	if client != nil {
-		err := client.UpdateInterfacesDirectly(c.sender.Device, c.interfaces)
+	client, err = libkflow.NewSenderWithDeviceName(host, errors, config)
+	if err != nil {
+		dconf := msg.GetDeviceConfig(cp.plan, cp.site, host)
+		cp.log.Infof("Creating new device: %s -> %v", dconf.Name, dconf.IPs)
+		client, err = libkflow.NewSenderWithNewDevice(dconf, errors, config)
 		if err != nil {
-			return err
+			clients[host] = flowclient.NewFlowClient(nil)
+			customs[host] = map[string]uint32{}
+			return fmt.Errorf("Cannot start client: %s %v", host, err)
+		}
+	} else {
+		cp.log.Infof("Found existing device: %s", host)
+	}
+
+	clients[host] = flowclient.NewFlowClient(client)
+	customs[host] = map[string]uint32{}
+
+	if client != nil {
+		for _, c := range client.Device.Customs {
+			customs[host][c.Name] = uint32(c.ID)
 		}
 	}
+
 	return nil
-}
-
-func (c *flowClient) AddInterface(intf *api.InterfaceUpdate) {
-	intf.Index = c.nextInterface
-	intf.Desc = fmt.Sprintf("kentik.%d", c.nextInterface)
-	c.nextInterface++
-
-	c.interfaces[intf.Desc] = *intf
 }
 
 // Main loop. Take in messages, turn them into kflow, and send them out.
 func (cp *Cp) generateKflow(ctx context.Context) error {
-	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, version.VERSION_STRING)
-	clients := map[string]*flowClient{}
+	clients := map[string]*flowclient.FlowClient{}
 	customs := map[string]map[string]uint32{}
 	errors := make(chan error, CHAN_SLACK)
 	fullUpserts := map[string][]hippo.Upsert{}
 	newTag := false
 
-	if cp.dest != "" {
-		config.SetFlow(cp.dest)
-	}
-
 	tagTick := time.NewTicker(TAG_CHECK_TIME)
 	defer tagTick.Stop()
-
-	tagReset := time.NewTicker(TAG_RESET_TIME)
-	defer tagReset.Stop()
 
 	updateInterfaces := time.NewTicker(INTERFACE_RESET_TIME)
 	defer updateInterfaces.Stop()
@@ -165,7 +147,7 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 	for {
 		select {
 		case msg := <-cp.msgs:
-			host, err := msg.GetHost(cp.isDevice)
+			host, err := msg.GetHost(cp.deviceMap)
 			if err != nil {
 				cp.log.Errorf("Invalid log line: %v", err)
 				continue
@@ -178,40 +160,21 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 			}
 
 			if _, ok := clients[host]; !ok {
-				var client *libkflow.Sender
-				var err error
-
-				client, err = libkflow.NewSenderWithDeviceName(host, errors, config)
+				err := cp.initClient(msg, host, errors, clients, customs)
 				if err != nil {
-					dconf := msg.GetDeviceConfig(cp.plan, cp.site, host)
-					cp.log.Infof("Creating new device: %s -> %v", dconf.Name, dconf.IPs)
-					client, err = libkflow.NewSenderWithNewDevice(dconf, errors, config)
-					if err != nil {
-						cp.log.Errorf("Cannot start client: %s %v", host, err)
-					}
-				} else {
-					cp.log.Infof("Found existing device: %s", host)
-				}
-
-				clients[host] = NewFlowClient(client)
-				customs[host] = map[string]uint32{}
-
-				if client != nil {
-					for _, c := range client.Device.Customs {
-						customs[host][c.Name] = uint32(c.ID)
+					cp.log.Errorf("InitClient: %v", err)
+					if clients[host] == nil {
+						continue
 					}
 				}
-			}
-
-			req, err := msg.ToFlow(customs[host], cp.dropIntraDest, cp.dropIntraSrc)
-			if err != nil {
-				cp.log.Errorf("Invalid log line: %v", err)
-				continue
 			}
 
 			if msg.IsIn() {
-				if !clients[host].setSrcHostTags[vmname] {
-					if clients[host].sender != nil {
+				if clients[host].Sender != nil {
+					if _, ok := clients[host].SetSrcHostTags[vmname]; !ok {
+						clients[host].SetSrcHostTags[vmname] = map[string]bool{}
+					}
+					if !clients[host].SetSrcHostTags[vmname][msg.Payload.Connection.SrcIP] {
 						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
 							cp.log.Errorf("Error setting src tags: %v", err)
 						} else {
@@ -226,13 +189,16 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 						} else {
 							clients[host].AddInterface(intf)
 						}
+						clients[host].SetSrcHostTags[vmname][msg.Payload.Connection.SrcIP] = true
+						cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 					}
-					clients[host].setSrcHostTags[vmname] = true
-					cp.log.Debugf("%s -> %s", msg.Payload.Connection.SrcIP, msg.Payload.Connection.DestIP)
 				}
 			} else {
-				if !clients[host].setDestHostTags[vmname] {
-					if clients[host].sender != nil {
+				if clients[host].Sender != nil {
+					if _, ok := clients[host].SetDestHostTags[vmname]; !ok {
+						clients[host].SetDestHostTags[vmname] = map[string]bool{}
+					}
+					if !clients[host].SetDestHostTags[vmname][msg.Payload.Connection.DestIP] {
 						if nu, cnt, err := msg.SetTags(fullUpserts); err != nil {
 							cp.log.Errorf("Error setting dst tags: %v", err)
 						} else {
@@ -240,16 +206,32 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 							fullUpserts = nu
 							newTag = true
 						}
+
+						// And load in an interface for this guy here.
+						if intf, err := msg.GetInterface(); err != nil {
+							cp.log.Errorf("Error getting interface: %v", err)
+						} else {
+							clients[host].AddInterface(intf)
+						}
+						clients[host].SetDestHostTags[vmname][msg.Payload.Connection.DestIP] = true
+						cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 					}
-					clients[host].setDestHostTags[vmname] = true
-					cp.log.Debugf("%s -> %s", msg.Payload.Connection.DestIP, msg.Payload.Connection.SrcIP)
 				}
 			}
 
-			if clients[host].sender != nil {
-				clients[host].sender.Send(req)
+			// Turn into Kflow
+			req, err := msg.ToFlow(customs[host], clients[host], cp.dropIntraDest, cp.dropIntraSrc)
+			if err != nil {
+				cp.log.Errorf("Invalid log line: %v", err)
+				continue
 			}
 
+			// Send to kentik.
+			if clients[host].Sender != nil {
+				clients[host].Sender.Send(req)
+			}
+
+			// If we are logging these, log away.
 			if cp.writeStdOut {
 				cp.log.Infof("%s", string(msg.ToJson()))
 			}
@@ -259,10 +241,6 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 				if err != nil {
 					cp.log.Errorf("Error updating interfaces: %v", err)
 				}
-			}
-		case _ = <-tagReset.C:
-			for h, _ := range clients {
-				clients[h].ResetTags()
 			}
 		case _ = <-tagTick.C:
 			if newTag {
@@ -296,29 +274,49 @@ func (cp *Cp) generateKflow(ctx context.Context) error {
 func (cp *Cp) sendHippoTags(upserts map[string][]hippo.Upsert) (int, error) {
 	done := 0
 	for col, up := range upserts {
-		req := &hippo.Req{
-			Replace:  true,
-			Complete: true,
-			Upserts:  up,
+		upComb := map[string]hippo.Upsert{}
+		for _, ups := range up { // Combine here.
+			if _, ok := upComb[ups.Val]; ok {
+				for _, rule := range upComb[ups.Val].Rules {
+					for _, ruleIn := range ups.Rules {
+						if rule.Dir == ruleIn.Dir {
+							rule.IPAddresses = append(rule.IPAddresses, ruleIn.IPAddresses...)
+						}
+					}
+				}
+			} else {
+				upComb[ups.Val] = ups
+			}
 		}
 
-		for _, ups := range up {
+		upFinal := []hippo.Upsert{}
+		for _, ups := range upComb {
+			upFinal = append(upFinal, ups)
+		}
+
+		for _, ups := range upFinal {
 			for _, rule := range ups.Rules {
-				// Dedup IPs here.
+				// Dedup and verify IPs here.
 				ips := map[string]bool{}
 				for _, ip := range rule.IPAddresses {
 					ips[ip] = true
 				}
-				ipsArr := make([]string, len(ips))
-				i := 0
+				ipsArr := make([]string, 0)
 				for ip, _ := range ips {
-					ipsArr[i] = ip
-					i++
+					if ipp := net.ParseIP(ip); ipp != nil {
+						ipsArr = append(ipsArr, ip)
+					}
 				}
 				rule.IPAddresses = ipsArr
 
 				cp.log.Debugf("%s %s -> %v", col, ups.Val, rule.IPAddresses)
 			}
+		}
+
+		req := &hippo.Req{
+			Replace:  true,
+			Complete: true,
+			Upserts:  upFinal,
 		}
 
 		b, err := cp.hippo.EncodeReq(req)
@@ -331,10 +329,11 @@ func (cp *Cp) sendHippoTags(upserts map[string][]hippo.Upsert) (int, error) {
 			return done, err
 		} else {
 			if _, err := cp.hippo.Do(context.Background(), req); err != nil {
-				return done, err
+				cp.log.Errorf("Uploading tags %v", err)
+			} else {
+				done++
 			}
 		}
-		done++
 	}
 	return done, nil
 }
@@ -353,7 +352,7 @@ func (cp *Cp) runSubscription(sub *pubsub.Subscription) {
 				if data.IsValid() {
 					cp.msgs <- &data
 				} else {
-					cp.rateError.Mark(1)
+					cp.rateInvalid.Mark(1)
 				}
 			}
 		})
@@ -381,9 +380,10 @@ func (cp *Cp) RunHealthCheck(ctx context.Context, result *baseserver.HealthCheck
 // HttpInfo implements the baseserver.Service interface.
 func (cp *Cp) HttpInfo(w http.ResponseWriter, r *http.Request) {
 	h := hc{
-		Check: cp.rateCheck.Rate5(),
-		Error: cp.rateError.Rate5(),
-		Depth: len(cp.msgs),
+		Check:   cp.rateCheck.Rate5(),
+		Error:   cp.rateError.Rate5(),
+		Invalid: cp.rateInvalid.Rate5(),
+		Depth:   len(cp.msgs),
 	}
 
 	b, err := json.Marshal(h)

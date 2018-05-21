@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"time"
+
+	flowclient "chf/cmd/gcevpc/cp/client"
 
 	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow/api"
@@ -66,6 +69,8 @@ const (
 	DST_ZONE       = "c_gce_dst_zone"
 	DST_VPC_SNN    = "c_gce_dst_vpc_snn"
 	REPORTER       = "c_gce_reporter"
+
+	RECV_WINDOW = -1 * 5 * 60 * time.Second
 )
 
 var (
@@ -147,7 +152,12 @@ type Labels struct {
 	SubnetworkName string `json:"subnetwork_name"`
 }
 
-func (m *GCELogLine) GetHost(isDevice bool) (host string, err error) {
+func (m *GCELogLine) GetTimestamp() time.Time {
+	t, _ := time.Parse(time.RFC3339, m.Payload.EndTime)
+	return t
+}
+
+func (m *GCELogLine) GetHost(deviceMap string) (host string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			json, errI := json.Marshal(m)
@@ -159,14 +169,23 @@ func (m *GCELogLine) GetHost(isDevice bool) (host string, err error) {
 		}
 	}()
 
-	if isDevice {
-		host, err = m.GetVMName()
-	}
-
-	if m.IsIn() {
-		host = m.Payload.SrcVPC.SubnetworkName
-	} else {
-		host = m.Payload.DestVPC.SubnetworkName
+	switch deviceMap {
+	case "subnet":
+		if m.IsIn() {
+			host = m.Payload.SrcVPC.SubnetworkName
+		} else {
+			host = m.Payload.DestVPC.SubnetworkName
+		}
+	case "vmname":
+		return m.GetVMName()
+	case "project":
+		if m.IsIn() {
+			host = strings.Join([]string{m.Payload.SrcInstance.ProjectID, m.Payload.SrcInstance.Region, m.Payload.SrcInstance.Zone}, "_")
+		} else {
+			host = strings.Join([]string{m.Payload.DestInstance.ProjectID, m.Payload.DestInstance.Region, m.Payload.DestInstance.Zone}, "_")
+		}
+	default:
+		return "", fmt.Errorf("Invalid device map: %s", deviceMap)
 	}
 
 	// Hack to avoid breaking Kentik.
@@ -204,12 +223,17 @@ func (m *GCELogLine) GetInterface() (*api.InterfaceUpdate, error) {
 		return nil, err
 	}
 
-	intr := &api.InterfaceUpdate{
-		Alias:   vm,
-		Address: m.Payload.Connection.SrcIP,
+	if m.IsIn() {
+		return &api.InterfaceUpdate{
+			Alias:   vm,
+			Address: m.Payload.Connection.SrcIP,
+		}, nil
+	} else {
+		return &api.InterfaceUpdate{
+			Alias:   vm,
+			Address: m.Payload.Connection.DestIP,
+		}, nil
 	}
-
-	return intr, nil
 }
 
 func (m *GCELogLine) GetDeviceConfig(plan int, site int, host string) *api.DeviceCreate {
@@ -259,8 +283,7 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 						Val: "",
 						Rules: []hippo.Rule{
 							{
-								Dir: "src",
-								//DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.SrcInstance.VMName), "-", "_", -1)},
+								Dir:         "src",
 								IPAddresses: []string{m.Payload.Connection.SrcIP},
 							},
 						},
@@ -290,7 +313,6 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 							{
 								Dir:         "dst",
 								IPAddresses: []string{m.Payload.Connection.DestIP},
-								//DeviceNames: []string{strings.Replace(api.NormalizeName(m.Payload.DestInstance.VMName), "-", "_", -1)},
 							},
 						},
 					},
@@ -339,7 +361,12 @@ func (m *GCELogLine) SetTags(upserts map[string][]hippo.Upsert) (map[string][]hi
 }
 
 func (m *GCELogLine) IsValid() bool {
-	return m.Payload != nil
+	if m.Payload != nil {
+		t := m.GetTimestamp()
+		return t.After(time.Now().Add(RECV_WINDOW))
+	}
+
+	return false
 }
 
 func (m *GCELogLine) IsIn() bool {
@@ -355,7 +382,7 @@ func (m *GCELogLine) ToJson() []byte {
 	return json
 }
 
-func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraSrc bool) (in *flow.Flow, err error) {
+func (m *GCELogLine) ToFlow(customs map[string]uint32, client *flowclient.FlowClient, dropIntraDest, dropIntraSrc bool) (in *flow.Flow, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			json, errI := json.Marshal(m)
@@ -366,6 +393,16 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraS
 			}
 		}
 	}()
+
+	srcVM := ""
+	if m.Payload.SrcInstance != nil {
+		srcVM = m.Payload.SrcInstance.VMName
+	}
+
+	dstVM := ""
+	if m.Payload.DestInstance != nil {
+		dstVM = m.Payload.DestInstance.VMName
+	}
 
 	if m.IsIn() {
 		if dropIntraSrc && m.IsInternal() {
@@ -378,8 +415,8 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraS
 			InPkts:        getUInt64(&m.Payload.Pkts),
 			OutBytes:      0,
 			OutPkts:       0,
-			InputPort:     1,
-			OutputPort:    1,
+			InputPort:     client.GetInterfaceID(srcVM),
+			OutputPort:    client.GetInterfaceID(dstVM),
 			L4DstPort:     uint32(m.Payload.Connection.DestPort),
 			L4SrcPort:     uint32(m.Payload.Connection.SrcPort),
 			Protocol:      uint32(m.Payload.Connection.Protocol),
@@ -404,8 +441,8 @@ func (m *GCELogLine) ToFlow(customs map[string]uint32, dropIntraDest, dropIntraS
 			OutPkts:       getUInt64(&m.Payload.Pkts),
 			InBytes:       0,
 			InPkts:        0,
-			InputPort:     1,
-			OutputPort:    1,
+			InputPort:     client.GetInterfaceID(dstVM),
+			OutputPort:    client.GetInterfaceID(srcVM),
 			L4SrcPort:     uint32(m.Payload.Connection.DestPort),
 			L4DstPort:     uint32(m.Payload.Connection.SrcPort),
 			Protocol:      uint32(m.Payload.Connection.Protocol),
