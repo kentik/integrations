@@ -2,7 +2,6 @@ package logger
 
 import (
 	"fmt"
-	"testing"
 )
 
 // At the lowest level we have a logger.Underlying.
@@ -151,29 +150,4 @@ func NewContextLFromUnderlying(lc Context, ul Underlying) ContextL {
 	}
 }
 
-// Testing implementations:
 
-func NewTestContextL(lc Context, t *testing.T) ContextL {
-	return &ContextLImpl{
-		Context: lc,
-		L:       &LoggerImpl{UL: &Test{T: t}},
-	}
-}
-
-// Implements logger.Underlying
-type Test struct {
-	T *testing.T
-}
-
-func (l *Test) Debugf(lp string, f string, params ...interface{}) {
-	l.T.Logf("%s DEBUG %s", lp, fmt.Sprintf(f, params...))
-}
-func (l *Test) Infof(lp string, f string, params ...interface{}) {
-	l.T.Logf("%s INFO %s", lp, fmt.Sprintf(f, params...))
-}
-func (l *Test) Warnf(lp string, f string, params ...interface{}) {
-	l.T.Logf("%s WARN %s", lp, fmt.Sprintf(f, params...))
-}
-func (l *Test) Errorf(lp string, f string, params ...interface{}) {
-	l.T.Logf("%s ERROR %s", lp, fmt.Sprintf(f, params...))
-}

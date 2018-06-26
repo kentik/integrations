@@ -333,7 +333,7 @@
 			"importpath": "github.com/kentik/eggs/pkg/logger",
 			"repository": "https://github.com/kentik/eggs",
 			"vcs": "git",
-			"revision": "8454e190d7513b5fd1aac40a7756c952ab5dc3dc",
+			"revision": "e49a33a44ccc54bac6bf02ebb316ad3fb92a2ccd",
 			"branch": "master",
 			"path": "/pkg/logger",
 			"notests": true
@@ -617,10 +617,10 @@
 		{
 			"importpath": "github.com/kentik/libkflow",
 			"repository": "https://github.com/kentik/libkflow",
-			"path": "src/github.com/kentik/libkflow",
 			"vcs": "git",
 			"revision": "1c1f4ee2745c6e8a0f990a872d30e0b456e696fb",
 			"branch": "stf-gcevpc-commits",
+			"path": "src/github.com/kentik/libkflow",
 			"notests": true
 		},
 		{
