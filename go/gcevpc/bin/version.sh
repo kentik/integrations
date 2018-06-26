@@ -15,9 +15,9 @@ golang=`go version`
 
 # only create the version.go files if they've changed, to avoid unnecessary builds
 TEMP_FILE=$( mktemp )
-OUTPUT_PATH=cmd/version.go
+OUTPUT_PATH=cmd/version/version.go
 
-cp cmd/version.go.base $TEMP_FILE
+cp cmd/version/version.go.base $TEMP_FILE
 sed -i.bak "s/XXX_GIT_HASH/$ver/g" $TEMP_FILE
 sed -i.bak "s/XXX_DATE/$date/g" $TEMP_FILE
 sed -i.bak "s|XXX_PLATFORM|$platform|g" $TEMP_FILE
