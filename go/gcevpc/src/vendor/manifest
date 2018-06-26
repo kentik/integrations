@@ -619,8 +619,8 @@
 			"repository": "https://github.com/kentik/libkflow",
 			"path": "src/github.com/kentik/libkflow",
 			"vcs": "git",
-			"revision": "c3396821d6ee3981ec688d6a5f964608f73bf69f",
-			"branch": "master",
+			"revision": "1c1f4ee2745c6e8a0f990a872d30e0b456e696fb",
+			"branch": "stf-gcevpc-commits",
 			"notests": true
 		},
 		{

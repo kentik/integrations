@@ -211,6 +211,32 @@ func (c *Client) UpdateInterfaces(dev *Device, nif *net.Interface) error {
 	return nil
 }
 
+func (c *Client) UpdateInterfacesDirectly(dev *Device, updates map[string]InterfaceUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	url := fmt.Sprintf(c.updateURL, dev.CompanyID, dev.ID)
+
+	body, err := json.Marshal(updates)
+	if err != nil {
+		return err
+	}
+
+	r, err := c.do("PUT", url, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return err
+	}
+	defer r.Body.Close()
+	io.Copy(ioutil.Discard, r.Body)
+
+	if r.StatusCode != 200 {
+		return &Error{StatusCode: r.StatusCode}
+	}
+
+	return nil
+}
+
 func (c *Client) SendFlow(url string, buf *bytes.Buffer) error {
 	r, err := c.do("POST", url, "application/binary", buf)
 	if err != nil {

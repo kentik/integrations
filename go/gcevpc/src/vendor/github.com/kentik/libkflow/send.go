@@ -57,6 +57,14 @@ func (s *Sender) Stop(wait time.Duration) bool {
 	}
 }
 
+func (s *Sender) GetClient() *api.Client {
+	if s != nil {
+		return s.client
+	} else {
+		return nil
+	}
+}
+
 func (s *Sender) start(agg *agg.Agg, client *api.Client, device *api.Device, n int) error {
 	q := s.url.Query()
 	q.Set("sid", "0")
