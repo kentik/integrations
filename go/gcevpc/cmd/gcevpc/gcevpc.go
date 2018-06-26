@@ -5,12 +5,10 @@ import (
 	"fmt"
 
 	"github.com/kentik/integrations/go/gcevpc/pkg"
-	"github.com/kentik/integrations/go/gcevpc/cmd/version"
 
 	"github.com/kentik/eggs/pkg/baseserver"
 	"github.com/kentik/eggs/pkg/logger"
 	"github.com/kentik/eggs/pkg/properties"
-	ev "github.com/kentik/eggs/pkg/version"
 )
 
 var (
@@ -34,14 +32,7 @@ var (
 )
 
 func main() {
-	eVeg := ev.VersionInfo{
-		Version:  version.VERSION.Version,
-		Date:     version.VERSION.Date,
-		Platform: version.VERSION.Platform,
-		Distro:   version.VERSION.Distro,
-	}
-
-	bs := baseserver.Boilerplate("gcevpc", eVeg, properties.NewEnvPropertyBacking())
+	bs := baseserver.Boilerplate("gcevpc", gcevpc.VERSION, properties.NewEnvPropertyBacking())
 	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCEVPC"}, bs.Logger)
 
 	if !ValidDeviceMappings[*FLAG_device] {
