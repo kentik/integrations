@@ -615,14 +615,6 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/kentik/libkflow",
-			"repository": "https://github.com/kentik/libkflow",
-			"vcs": "git",
-			"revision": "0461b9a9864ff42d1c1f8e860bc28e243c2a5e17",
-			"branch": "master",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/kentik/proto",
 			"repository": "https://github.com/kentik/proto",
 			"vcs": "git",
