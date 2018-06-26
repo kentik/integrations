@@ -14,13 +14,14 @@ import (
 func main() {
 
 	var (
+		listenAddr  = flag.String("addr", ":http", "Listen on addr:port")
 		writeStdout = flag.Bool("json", false, "Write flows to stdout in json form.")
 	)
 
 	bs := baseserver.Boilerplate("gcevpc-validate", gcevpc.Version, properties.NewEnvPropertyBacking())
 	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCEVPC-VALIDATE"}, bs.Logger)
 
-	svc, err := validate.NewValidatorService(lc, *writeStdout)
+	svc, err := validate.NewValidatorService(*listenAddr, lc, *writeStdout)
 	if err != nil {
 		bs.Fail(fmt.Sprintf("Cannot start: %v", err))
 	}
