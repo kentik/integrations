@@ -1,4 +1,4 @@
-package gcevpc
+package cp
 
 import (
 	"context"
@@ -12,11 +12,13 @@ import (
 	"github.com/kentik/integrations/go/gcevpc/pkg/types"
 
 	"cloud.google.com/go/pubsub"
+
 	"github.com/kentik/eggs/pkg/baseserver"
 	"github.com/kentik/eggs/pkg/logger"
 	go_metrics "github.com/kentik/go-metrics"
-	"github.com/kentik/libkflow"
 	"github.com/kentik/gohippo"
+	"github.com/kentik/integrations/go/gcevpc/pkg"
+	"github.com/kentik/libkflow"
 )
 
 const (
@@ -94,7 +96,7 @@ func (cp *Cp) cleanup() {
 func (cp *Cp) initClient(msg *types.GCELogLine, host string, errors chan error, clients map[string]*flowclient.FlowClient,
 	customs map[string]map[string]uint32) error {
 
-	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, "FIXME") // version.VERSION_STRING
+	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, gcevpc.Version.Version)
 	if cp.dest != "" {
 		config.SetFlow(cp.dest)
 	}
@@ -365,7 +367,7 @@ func (cp *Cp) handleIntrospectPolicy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cp *Cp) GetStatus() []byte {
-	return []byte(fmt.Sprintf("\nCHF GCEVPC: %s Built on %s\n", VERSION.Version, VERSION.Date))
+	return []byte(fmt.Sprintf("\nCHF GCEVPC: %s Built on %s\n", gcevpc.Version.Version, gcevpc.Version.Date))
 }
 
 // RunHealthCheck implements the baseserver.Service interface.
