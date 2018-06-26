@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
-	flowclient "pkg/cpg/cp/client"
+	flowclient "github.com/kentik/integrations/go/gcevpc/pkg/client"
 
 	"github.com/kentik/libkflow/api"
 	"github.com/kentik/libkflow/flow"
+	hippo "github.com/kentik/gohippo"
 )
 
 /**

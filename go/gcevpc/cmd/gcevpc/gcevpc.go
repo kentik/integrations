@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 
-	"pkg/gcevpc"
-	"version"
+	"github.com/kentik/integrations/go/gcevpc/pkg"
+	"github.com/kentik/integrations/go/gcevpc/cmd/version"
 
 	"github.com/kentik/eggs/pkg/baseserver"
 	"github.com/kentik/eggs/pkg/logger"

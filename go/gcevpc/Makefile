@@ -1,13 +1,9 @@
-export GOPATH := $(PWD)
+export GOPATH := $(GOPATH):$(PWD)/vendor
 
 .PHONY: all
 all:
 	bin/version.sh
-	go install cmd/gcevpc
-
-#.PHONY: generate
-#generate:
-#	$(GOCMD) generate chf/...
+	go install ./cmd/... ./pkg/...
 
 .PHONY: clean
 clean:

@@ -9,15 +9,15 @@ import (
 	"net/http"
 	"time"
 
-	flowclient "pkg/cpg/cp/client"
-	"pkg/cpg/cp/types"
-	"version"
+	flowclient "github.com/kentik/integrations/go/gcevpc/pkg/client"
+	"github.com/kentik/integrations/go/gcevpc/pkg/types"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/kentik/eggs/pkg/baseserver"
 	"github.com/kentik/eggs/pkg/logger"
 	go_metrics "github.com/kentik/go-metrics"
 	"github.com/kentik/libkflow"
+	hippo "github.com/kentik/gohippo"
 )
 
 const (
@@ -95,7 +95,7 @@ func (cp *Cp) cleanup() {
 func (cp *Cp) initClient(msg *types.GCELogLine, host string, errors chan error, clients map[string]*flowclient.FlowClient,
 	customs map[string]map[string]uint32) error {
 
-	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, version.VERSION_STRING)
+	config := libkflow.NewConfig(cp.email, cp.token, PROGRAM_NAME, "FIXME") // version.VERSION_STRING
 	if cp.dest != "" {
 		config.SetFlow(cp.dest)
 	}
@@ -367,7 +367,10 @@ func (cp *Cp) handleIntrospectPolicy(w http.ResponseWriter, r *http.Request) {
 
 func (cp *Cp) GetStatus() []byte {
 	b := new(bytes.Buffer)
-	b.WriteString(fmt.Sprintf("\nCHF GCEVPC: %s Built on %s %s (%s)\n", version.VERSION_STRING, version.PLATFORM_STRING, version.DISTRO_STRING, version.DATE_STRING))
+
+	// FIXME(stefan)
+	//	b.WriteString(fmt.Sprintf("\nCHF GCEVPC: %s Built on %s %s (%s)\n", version.VERSION_STRING, version.PLATFORM_STRING, version.DISTRO_STRING, version.DATE_STRING))
+	b.WriteString("FIXME")
 
 	return b.Bytes()
 }
