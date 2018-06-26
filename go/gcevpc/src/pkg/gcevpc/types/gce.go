@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	flowclient "chf/cmd/gcevpc/cp/client"
+	flowclient "pkg/cpg/cp/client"
 
-	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow/api"
 	"github.com/kentik/libkflow/flow"
 )

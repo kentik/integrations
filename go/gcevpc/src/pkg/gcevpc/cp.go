@@ -1,4 +1,4 @@
-package cp
+package gcevpc
 
 import (
 	"bytes"
@@ -9,15 +9,14 @@ import (
 	"net/http"
 	"time"
 
-	flowclient "chf/cmd/gcevpc/cp/client"
-	"chf/cmd/gcevpc/cp/types"
+	flowclient "pkg/cpg/cp/client"
+	"pkg/cpg/cp/types"
 	"version"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/kentik/eggs/pkg/baseserver"
 	"github.com/kentik/eggs/pkg/logger"
 	go_metrics "github.com/kentik/go-metrics"
-	"github.com/kentik/gohippo"
 	"github.com/kentik/libkflow"
 )
 

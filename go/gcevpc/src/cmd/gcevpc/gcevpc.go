@@ -4,12 +4,12 @@ import (
 	"flag"
 	"fmt"
 
-	"chf/cmd/gcevpc/cp"
-	"chf/kt"
+	"pkg/gcevpc"
 	"version"
 
 	"github.com/kentik/eggs/pkg/baseserver"
 	"github.com/kentik/eggs/pkg/logger"
+	"github.com/kentik/eggs/pkg/properties"
 	ev "github.com/kentik/eggs/pkg/version"
 )
 
@@ -41,14 +41,14 @@ func main() {
 		Distro:   version.VERSION.Distro,
 	}
 
-	bs := baseserver.Boilerplate("gcevpc", eVeg, kt.DefaultGCEVPCProperties)
+	bs := baseserver.Boilerplate("gcevpc", eVeg, properties.NewEnvPropertyBacking())
 	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCEVPC"}, bs.Logger)
 
 	if !ValidDeviceMappings[*FLAG_device] {
 		bs.Fail(fmt.Sprintf("Invalid device mapping: %s. Options: %v", *FLAG_device, ValidDeviceMappings))
 	}
 
-	cpr, err := cp.NewCp(lc, *FLAG_sourceSub, *FLAG_projectID, *FLAG_dstAddr, *FLAG_email, *FLAG_token, *FLAG_plan, *FLAG_site, *FLAG_device,
+	cpr, err := gcevpc.NewCp(lc, *FLAG_sourceSub, *FLAG_projectID, *FLAG_dstAddr, *FLAG_email, *FLAG_token, *FLAG_plan, *FLAG_site, *FLAG_device,
 		*FLAG_dropIntraDest, *FLAG_dropIntraSrc, *FLAG_writeStdout)
 	if err != nil {
 		bs.Fail(fmt.Sprintf("Cannot start gcevpc: %v", err))
