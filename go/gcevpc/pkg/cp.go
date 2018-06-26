@@ -1,7 +1,6 @@
 package gcevpc
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,7 +16,7 @@ import (
 	"github.com/kentik/eggs/pkg/logger"
 	go_metrics "github.com/kentik/go-metrics"
 	"github.com/kentik/libkflow"
-	hippo "github.com/kentik/gohippo"
+	"github.com/kentik/gohippo"
 )
 
 const (
@@ -366,13 +365,7 @@ func (cp *Cp) handleIntrospectPolicy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cp *Cp) GetStatus() []byte {
-	b := new(bytes.Buffer)
-
-	// FIXME(stefan)
-	//	b.WriteString(fmt.Sprintf("\nCHF GCEVPC: %s Built on %s %s (%s)\n", version.VERSION_STRING, version.PLATFORM_STRING, version.DISTRO_STRING, version.DATE_STRING))
-	b.WriteString("FIXME")
-
-	return b.Bytes()
+	return []byte(fmt.Sprintf("\nCHF GCEVPC: %s Built on %s\n", VERSION.Version, VERSION.Date))
 }
 
 // RunHealthCheck implements the baseserver.Service interface.

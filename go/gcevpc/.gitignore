@@ -1,3 +1,0 @@
-!bin/version.sh
-bin/*
-cmd/version/version.go
