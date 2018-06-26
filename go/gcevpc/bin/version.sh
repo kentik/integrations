@@ -8,7 +8,6 @@ if test $? -ne 0; then
 	fi
 fi
 
-# date of the current commit
 date=`git show -s --format=%cD`
 platform=`uname -srm`
 distro=`lsb_release -d | cut -f2`
@@ -16,9 +15,9 @@ golang=`go version`
 
 # only create the version.go files if they've changed, to avoid unnecessary builds
 TEMP_FILE=$( mktemp )
-OUTPUT_PATH=src/version/version.go
+OUTPUT_PATH=cmd/version.go
 
-cp src/version/version.go.base $TEMP_FILE
+cp cmd/version.go.base $TEMP_FILE
 sed -i.bak "s/XXX_GIT_HASH/$ver/g" $TEMP_FILE
 sed -i.bak "s/XXX_DATE/$date/g" $TEMP_FILE
 sed -i.bak "s|XXX_PLATFORM|$platform|g" $TEMP_FILE
@@ -32,5 +31,3 @@ if [ $RET -ne 0 ]; then
   cp $TEMP_FILE $OUTPUT_PATH
 fi
 rm $TEMP_FILE
-
-

@@ -1,30 +1,17 @@
 export GOPATH := $(PWD)
 
-GOCMD := go
-
-EXECUTABLES := gcevpc
-
 .PHONY: all
 all:
-	./bin/version.sh
-	$(GOCMD) install $(addprefix chf/cmd/,$(EXECUTABLES))
+	bin/version.sh
+	go install cmd/gcevpc
 
-.PHONY: generate
-generate:
-	$(GOCMD) generate chf/...
-
-make-%:
-	./bin/version.sh
-	$(GOCMD) install chf/cmd/$*
+#.PHONY: generate
+#generate:
+#	$(GOCMD) generate chf/...
 
 .PHONY: clean
 clean:
-	cd bin \
-		&& rm -f $(EXECUTABLES)
-	rm -rf pkg
-	rm -f ./bin/debs/*
-
-#---------------------------------------------------------
+	rm -f bin/gcevpc
 
 .PHONY: test
 test:
