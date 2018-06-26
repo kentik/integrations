@@ -5,10 +5,6 @@ all:
 	bin/version.sh
 	go install ./cmd/... ./pkg/...
 
-.PHONY: clean
-clean:
-	rm -f bin/gcevpc
-
 .PHONY: test
 test:
-	$(GOCMD) test chf/...
+	go test ./cmd/... ./pkg/...
