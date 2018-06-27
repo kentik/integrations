@@ -113,7 +113,7 @@ func partial(data []byte) string {
 var validProject = regexp.MustCompile(`^[a-zA-Z0-9-_]+$`)
 
 // Must be 3-255 characters, start with a letter, and contain only the following characters: letters, numbers, dashes (-), periods (.), underscores (_), tildes (~), percents (%) or plus signs (+). Cannot start with goog.
-var validSub = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9\-._~%+]{3,255}$`)
+var validSub = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9\-._~%+]{2,255}$`)
 
 func (svc *ValidatorService) validateHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), validationTimeout)
@@ -247,7 +247,8 @@ function validate() {
 
 	response = fetch("/api/v1/validate/" + project + "/" + sub , {
 	    method: 'GET',
-		cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
+		cache: 'no-cache',
+		credentials: "same-origin",
 	})
 	.then(res => res.json())
 	.then(function(res) {
