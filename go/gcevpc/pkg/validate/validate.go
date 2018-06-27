@@ -296,6 +296,9 @@ func (svc *ValidatorService) Run(parentCtx context.Context) (err error) {
 	defer cancel()
 
 	r := mux.NewRouter()
+	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, "/ui/index.html", http.StatusTemporaryRedirect)
+	})
 
 	ui := r.PathPrefix("/ui").Subrouter()
 	ui.HandleFunc("/index.html", svc.uiHandler)
