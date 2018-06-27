@@ -19,9 +19,10 @@ func main() {
 	)
 
 	bs := baseserver.Boilerplate("gcevpc-validate", gcevpc.Version, properties.NewEnvPropertyBacking())
-	lc := logger.NewContextLFromUnderlying(logger.SContext{S: "GCEVPC-VALIDATE"}, bs.Logger)
 
-	svc, err := validate.NewValidatorService(*listenAddr, lc, *writeStdout)
+	svcLogger := logger.NewContextLFromUnderlying(logger.SContext{S: "ValidatorService"}, bs.Logger)
+
+	svc, err := validate.NewValidatorService(*listenAddr, svcLogger, *writeStdout)
 	if err != nil {
 		bs.Fail(fmt.Sprintf("Cannot start: %v", err))
 	}
