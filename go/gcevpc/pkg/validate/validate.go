@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	validationTimeout = 2 * time.Minute // total timeout for validation handler
+	validationTimeout = 90 * time.Second // total timeout for validation handler
 	existTimeout      = 30 * time.Second
-	receiveTimeout    = 1 * time.Minute
+	receiveTimeout    = 30 * time.Second
 	maxMessageSize    = 16 * 1024
 )
 
@@ -185,21 +185,25 @@ func (svc *ValidatorService) uiHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `<html>
 <head><title>Kentik GCE VPC - Subscription checker</title>
 <style>
+
+#form {
+	display: inline-block;
+	margin-bottom: 10px;
+}
+
 legend {
     background-color: #000;
     color: #fff;
     padding: 3px 6px;
 }
 
-input,
-label {
-    width: 43%;
+#inputs {
+	position: relative;
 }
 
 input {
     margin: .5rem 0;
     padding: .5rem;
-    border-radius: 4px;
     border: 1px solid #ddd;
 }
 
@@ -207,22 +211,38 @@ label {
     display: inline-block;
 }
 
-input:invalid + span:after {
-    content: '✖';
-    color: red;
-    padding-left: 5px;
-}
-
-input:valid + span:after {
-    content: '✓';
-    color: green;
-    padding-left: 5px;
+input:invalid {
+	background-color: lightpink;
 }
 
 #submit {
-	margin-left: 20px;
-    border: 2px solid #daa;
+	position: absolute;
+	right: 0;
+	color: #ffffff;
+	background: #3498db;
+	padding: 10px 20px 10px 20px;
+	text-decoration: none;
 }
+
+#submit:hover {
+	background: #3cb0fd;
+	text-decoration: none;
+}
+
+#results p {
+	border: 1px dotted lightgray;
+	padding: 3px;
+}
+
+legend a {
+	color: inherit;
+	text-decoration: inherit;
+    border: 1px white solid;
+    font-size: small;
+	padding-right: 4;
+	background-color: darkred;
+}
+
 </style>
 </head>
 
@@ -236,7 +256,7 @@ function reset() {
 
 function log(key, msg) {
 	var d = new Date().toLocaleTimeString();
-	document.getElementById("result").insertAdjacentHTML('beforeend', '<p>' + d + ' <b>' + key + "</b>:&nbsp;" + msg + '</p>');
+	document.getElementById("results").insertAdjacentHTML('beforeend', '<p>' + d + ' <b>' + key + "</b>:&nbsp;" + msg + '</p>');
 }
 
 function validate() {
@@ -245,46 +265,60 @@ function validate() {
 	project = document.getElementById("project").value;
 	sub = document.getElementById("subscription").value;
 
+	if (!project || !sub) {
+		log("error", "empty field(s)");
+		reset();
+		return;
+	}
+
 	response = fetch("/api/v1/validate/" + project + "/" + sub , {
 	    method: 'GET',
 		cache: 'no-cache',
 		credentials: "same-origin",
 	})
-	.then(res => res.json())
 	.then(function(res) {
+		if (res.status == 502) {
+			return {key: "Error", message:"Checker tool backend is unavailable, please retry later"}
+        } else if (res.headers.get('Content-Type') != "application/json") {
+			return {key: "Error", message:"Unexpected response from checker tool backend: " +res.headers.get('Content-Type') }
+        } else {
+			return res.json()
+        }
+	}).then(function(res) {
 		console.log(res);
 		log(res.key, res.message);
 		reset();
 	}).catch(function(err) {
 		console.log(err);
 		log("Error", err);
-		reset();
+		log("Error", "Please reload the page"); // could be we need to re-auth
 	})
 
 }
 </script>
 
 
-<div>
+<div id='form'>
+
 <fieldset>
-	<legend>Kentik GCE VPC - Subscription checker</legend>
+	<legend>Kentik GCE VPC - Subscription checker <a target="_blank" href="https://docs.google.com/document/d/1O7Njj4N3yv9p-iyrK74WYp_U_2Z78kkwNjYf4QRVek0/edit#"">↗ Help</a></legend>
 	<form>
-	<div>
-		<label for="project">Project name:&nbsp;</label>
-		<input id="project" type="text" value="kentik-vpc-flow" pattern="[a-zA-Z0-9-_]+" minlength="3" maxlength="255" /><span></span><br/>
+	<div id='inputs'>
+		<label for="project">Project:</label>
+		<input id="project" type="text" value="kentik-vpc-flow" pattern="[a-zA-Z0-9-_]+" minlength="3" maxlength="255" /><br/>
 
-		<label for=""subscription">Subscription name:&nbsp;</label>
-		<input id="subscription" type="text" value="self-vpc-flows-sub" pattern="[a-zA-Z][a-zA-Z0-9\-\+\._~]+" minlength="3" maxlength="255"/><span></span><br/>
+		<label for=""subscription">Subscription:</label>
+		<input id="subscription" type="text" value="self-vpc-flows-sub" pattern="[a-zA-Z][a-zA-Z0-9\-\+\._~]+" minlength="3" maxlength="255"/><br/>
 
-		<input id="submit" type="button" value="Run server check" onClick="validate()" />
+		<input id="submit" type="button" value="🔎 Run check" onClick="validate()" />
 	</div>
 	</form>
 </fieldset>
+
+
 </div>
 
-<p>
-	<div id="result"/>
-</p>
+<div id='results'/>
 
 </body>
 </html>
