@@ -229,6 +229,12 @@ input:invalid {
 	text-decoration: none;
 }
 
+#submit:disabled {
+	background: #cdcdcd;
+	text-decoration: none;
+	pointer-events: none;
+}
+
 #results p {
 	border: 1px dotted lightgray;
 	padding: 3px;
